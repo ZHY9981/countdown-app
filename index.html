@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>我的倒计时</title>
+<style>
+  body {
+    background: #f5f7fa;
+    font-family: "Microsoft YaHei", sans-serif;
+    max-width: 700px;
+    margin: 40px auto;
+    padding: 0 20px;
+  }
+  h1 { color: #1a1a1a; }
+
+  .add-form { display: flex; gap: 8px; margin-bottom: 20px; align-items: center; }
+  .add-form input {
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 15px;
+  }
+  #nameInput { flex: 1; }
+  .add-form button {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 8px;
+    background: #e74c3c;
+    color: #fff;
+    font-size: 15px;
+    cursor: pointer;
+  }
+
+  /* 普通卡片：名字和天数一左一右 */
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card .name { font-size: 18px; color: #333; }
+  .card .days { font-size: 24px; font-weight: bold; color: #e74c3c; }
+
+  /* 第一张卡片（最紧迫）：放大 + 上下布局 + 红边框突出 */
+  .card.featured {
+    flex-direction: column;      /* 上下排，而不是左右 */
+    justify-content: center;
+    padding: 26px 20px;
+    border: 2px solid #e74c3c;
+  }
+  .card.featured .name {
+    font-size: 32px;
+    font-weight: bold;
+    margin-bottom: 18px;
+  }
+
+  /* 翻页时钟容器 */
+  .flip-clock {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 3px;
+  }
+  .flip-clock .group { display: flex; gap: 2px; }
+  .flip-clock .label, .flip-clock .colon { font-size: 16px; color: #888; }
+
+  /* 一个数字位（变小一点） */
+  .digit {
+    position: relative;
+    display: inline-block;
+    width: 46px;
+    height: 70px;
+    perspective: 350px;
+    font-family: Consolas, monospace;
+    font-weight: bold;
+    font-size: 46px;
+  }
+  .panel {
+    position: absolute;
+    left: 0;
+    width: 46px;
+    height: 35px;
+    overflow: hidden;
+    background: #000;           /* 黑色叶片 */
+    color: #fff;
+  }
+  .panel span {
+    position: absolute;
+    left: 0;
+    width: 46px;
+    height: 70px;
+    line-height: 70px;
+    text-align: center;         /* 数字水平居中 */
+  }
+  .top-static, .flap-top       { top: 0;    border-radius: 5px 5px 0 0; }
+  .bottom-static, .flap-bottom { top: 35px; border-radius: 0 0 5px 5px; }
+  .top-static span, .flap-top span       { top: 0; }
+  .bottom-static span, .flap-bottom span { bottom: 0; }
+
+  .flap-top {
+    transform-origin: bottom;
+    transition: transform 0.3s ease-in;
+    z-index: 2;
+  }
+  .flap-bottom {
+    transform-origin: top;
+    transform: rotateX(90deg);
+    transition: transform 0.3s ease-out 0.3s;
+    z-index: 2;
+  }
+</style>
+</head>
+<body>
+  <h1>我的倒计时</h1>
+
+  <div class="add-form">
+    <input id="nameInput" type="text" placeholder="要惦记的事，比如：考研">
+    <input id="dateInput" type="date">
+    <button id="addBtn">添加</button>
+  </div>
+
+  <div id="list"></div>
+
+  <script>
+    /* ===== 数据 ===== */
+    let events = [
+      { name: '2027 黑客松', date: '2027-06-01' },
+      { name: '雅思考试',     date: '2026-10-25' },
+    ];
+
+    function daysLeft(dateStr) {
+      const ms = new Date(dateStr) - new Date();
+      return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));   /* 过去的日子就算 0 天 */
+    }
+
+    /* ===== 翻页数字"工厂"（跟你之前写的翻页时钟一模一样） ===== */
+    function makeDigit() {
+      const el = document.createElement('div');
+      el.className = 'digit';
+      el.innerHTML =
+        '<div class="panel top-static"><span>0</span></div>' +
+        '<div class="panel bottom-static"><span>0</span></div>' +
+        '<div class="panel flap-top"><span>0</span></div>' +
+        '<div class="panel flap-bottom"><span>0</span></div>';
+
+      const topStatic  = el.querySelector('.top-static span');
+      const botStatic  = el.querySelector('.bottom-static span');
+      const flapTop    = el.querySelector('.flap-top');
+      const flapBottom = el.querySelector('.flap-bottom');
+      const flapTopNum = el.querySelector('.flap-top span');
+      const flapBotNum = el.querySelector('.flap-bottom span');
+
+      let current = null;
+
+      function setNow(ch) {          /* 直接摆好，不带动画 */
+        current = ch;
+        topStatic.textContent = ch;
+        botStatic.textContent = ch;
+        flapTopNum.textContent = ch;
+        flapBotNum.textContent = ch;
+      }
+
+      function flipTo(next) {        /* 翻到某个字 */
+        if (next === current) return;
+        topStatic.textContent = next;
+        botStatic.textContent = current;
+
+        flapTop.style.transition = 'none';
+        flapBottom.style.transition = 'none';
+        flapTopNum.textContent = current;
+        flapBotNum.textContent = next;
+        flapTop.style.transform = 'rotateX(0deg)';
+        flapBottom.style.transform = 'rotateX(90deg)';
+        void flapTop.offsetWidth;
+
+        flapTop.style.transition = 'transform 0.3s ease-in';
+        flapTop.style.transform = 'rotateX(-90deg)';
+        flapBottom.style.transition = 'transform 0.3s ease-out 0.3s';
+        flapBottom.style.transform = 'rotateX(0deg)';
+
+        setTimeout(() => {
+          topStatic.textContent = next;
+          botStatic.textContent = next;
+          flapTopNum.textContent = next;
+          flapTop.style.transition = 'none';
+          flapBottom.style.transition = 'none';
+          flapTop.style.transform = 'rotateX(0deg)';
+          flapBottom.style.transform = 'rotateX(90deg)';
+        }, 600);
+
+        current = next;
+      }
+
+      return { el, setNow, flipTo };
+    }
+
+    /* ===== 翻页时钟：把 9 个翻转位拼成"天 时:分:秒" ===== */
+    function buildFlipClock() {
+      const clock = document.createElement('div');
+      clock.className = 'flip-clock';
+      const groups = {};
+
+      function addGroup(key, count) {   /* 造一组数字位 */
+        const g = document.createElement('div');
+        g.className = 'group';
+        const digits = [];
+        for (let i = 0; i < count; i++) {
+          const d = makeDigit();
+          g.appendChild(d.el);
+          digits.push(d);
+        }
+        clock.appendChild(g);
+        groups[key] = digits;
+      }
+      function addLabel(text, cls) {    /* 造一个标签："天" 或 ":" */
+        const s = document.createElement('span');
+        s.className = cls || 'label';
+        s.textContent = text;
+        clock.appendChild(s);
+      }
+
+      addGroup('day', 3);
+      addLabel('天');
+      addGroup('hour', 2);
+      addLabel(':', 'colon');
+      addGroup('min', 2);
+      addLabel(':', 'colon');
+      addGroup('sec', 2);
+
+      function pad(n, w) { return String(n).padStart(w, '0'); }
+
+      function parts(dateStr) {         /* 把"距离目标还有多久"拆成天/时/分/秒 */
+        let s = Math.floor((new Date(dateStr) - new Date()) / 1000);
+        if (s < 0) s = 0;
+        return {
+          day:  pad(Math.floor(s / 86400), 3),
+          hour: pad(Math.floor(s % 86400 / 3600), 2),
+          min:  pad(Math.floor(s % 3600 / 60), 2),
+          sec:  pad(s % 60, 2),
+        };
+      }
+
+      function apply(dateStr, animate) {  /* animate=true 翻；false 直接摆 */
+        const p = parts(dateStr);
+        for (const key of ['day', 'hour', 'min', 'sec']) {
+          const digits = groups[key];
+          const chars = p[key].split('');
+          for (let i = 0; i < digits.length; i++) {
+            if (animate) digits[i].flipTo(chars[i]);
+            else digits[i].setNow(chars[i]);
+          }
+        }
+      }
+
+      return { el: clock, apply };
+    }
+
+    /* ===== 造一张普通卡片 ===== */
+    function makeCard(event) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML =
+        '<span class="name">' + event.name + '</span>' +
+        '<span class="days">' + daysLeft(event.date) + ' 天</span>';
+      return card;
+    }
+
+    /* ===== 造"第一张"卡片：放大 + 翻页时钟 ===== */
+    let clockTimer = null;      /* 记住那个"每秒更新"的定时器 */
+
+    function makeFeaturedCard(event) {
+      const card = document.createElement('div');
+      card.className = 'card featured';
+
+      const name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = event.name;
+      card.appendChild(name);
+
+      const clock = buildFlipClock();
+      clock.apply(event.date, false);        /* 先摆好，不动画 */
+      card.appendChild(clock.el);
+
+      clockTimer = setInterval(() => clock.apply(event.date, true), 1000);   /* 每秒翻 */
+      return card;
+    }
+
+    /* ===== 渲染：先排序，再画卡片 ===== */
+    const list = document.getElementById('list');
+
+    function render() {
+      if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }   /* 停掉旧的每秒定时器 */
+      list.innerHTML = '';                                                /* 清空列表 */
+
+      const sorted = [...events].sort((a, b) => daysLeft(a.date) - daysLeft(b.date));  /* 天少的排前面 */
+      sorted.forEach((event, i) => {
+        if (i === 0) list.appendChild(makeFeaturedCard(event));   /* 第一张：放大版 */
+        else         list.appendChild(makeCard(event));           /* 其余：普通版 */
+      });
+    }
+
+    render();   /* 先画一次 */
+
+    /* ===== 添加 ===== */
+    const nameInput = document.getElementById('nameInput');
+    const dateInput = document.getElementById('dateInput');
+    const addBtn    = document.getElementById('addBtn');
+
+    addBtn.onclick = () => {
+      const name = nameInput.value.trim();
+      const date = dateInput.value;
+      if (!name || !date) return;
+
+      events.push({ name: name, date: date });
+      nameInput.value = '';
+      dateInput.value = '';
+      render();                     /* 重画：自动重新排序 */
+    };
+  </script>
+</body>
+</html>
