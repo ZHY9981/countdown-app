@@ -126,11 +126,21 @@
   <div id="list"></div>
 
   <script>
-    /* ===== 数据 ===== */
-    let events = [
-      { name: '2027 黑客松', date: '2027-06-01' },
-      { name: '雅思考试',     date: '2026-10-25' },
-    ];
+    /* ===== 数据：打开时先试着从"存档"里读回来 ===== */
+    function loadEvents() {
+      const saved = localStorage.getItem('events');   /* 读存档 */
+      if (saved) return JSON.parse(saved);            /* 有存档 → 把它从文字变回数组 */
+      return [                                        /* 没有存档（第一次打开）→ 用默认两个 */
+        { name: '2027 黑客松', date: '2027-06-01' },
+        { name: '雅思考试',     date: '2026-10-25' },
+      ];
+    }
+
+    function saveEvents() {
+      localStorage.setItem('events', JSON.stringify(events));  /* 把数组变成文字，存起来 */
+    }
+
+    let events = loadEvents();
 
     function daysLeft(dateStr) {
       const ms = new Date(dateStr) - new Date();
@@ -316,6 +326,7 @@
       if (!name || !date) return;
 
       events.push({ name: name, date: date });
+      saveEvents();                 /* 存一份，关了也不丢 */
       nameInput.value = '';
       dateInput.value = '';
       render();                     /* 重画：自动重新排序 */
