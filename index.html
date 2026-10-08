@@ -33,6 +33,7 @@
 
   /* 普通卡片：名字和天数一左一右 */
   .card {
+    position: relative;         /* 当"坐标原点"，好让删除按钮定位到右上角 */
     background: #fff;
     border-radius: 12px;
     padding: 16px 20px;
@@ -44,6 +45,21 @@
   }
   .card .name { font-size: 18px; color: #333; }
   .card .days { font-size: 24px; font-weight: bold; color: #e74c3c; }
+
+  .delete-btn {                 /* 每张卡右上角的"×" */
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    border: none;
+    background: none;
+    color: #bbb;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 6px;
+    z-index: 10;                /* 放在最上层，免得被翻页叶片盖住 */
+  }
+  .delete-btn:hover { color: #e74c3c; }   /* 鼠标移上去变红，提示"这是删除" */
 
   /* 第一张卡片（最紧迫）：放大 + 上下布局 + 红边框突出 */
   .card.featured {
@@ -276,7 +292,25 @@
       card.innerHTML =
         '<span class="name">' + event.name + '</span>' +
         '<span class="days">' + daysLeft(event.date) + ' 天</span>';
+      card.appendChild(makeDeleteBtn(event));
       return card;
+    }
+
+    /* ===== 删除按钮：点一下，删掉"这一个事件" ===== */
+    function makeDeleteBtn(event) {
+      const btn = document.createElement('button');
+      btn.className = 'delete-btn';
+      btn.textContent = '×';
+      btn.title = '删除';
+      btn.onclick = () => delEvent(event);   /* 注意：删的是这个 event 本身，不是第几张 */
+      return btn;
+    }
+
+    /* 从数组里去掉这个事件，存盘、重画 */
+    function delEvent(event) {
+      events = events.filter(e => e !== event);   /* 留下"不是它"的 → 等于删掉它 */
+      saveEvents();
+      render();
     }
 
     /* ===== 造"第一张"卡片：放大 + 翻页时钟 ===== */
@@ -285,6 +319,7 @@
     function makeFeaturedCard(event) {
       const card = document.createElement('div');
       card.className = 'card featured';
+      card.appendChild(makeDeleteBtn(event));   /* 右上角的删除按钮 */
 
       const name = document.createElement('div');
       name.className = 'name';
