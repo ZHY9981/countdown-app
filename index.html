@@ -79,18 +79,25 @@
   .card .name { font-size: 18px; color: #333; }
   .card .days { font-size: 24px; font-weight: bold; color: #e74c3c; }
 
-  .delete-btn {                 /* 长按卡片之后，才从右边缘滑出来的"×" */
+  .delete-btn {                 /* 长按卡片之后，才从右边缘滑出来的"删除"块 */
     position: absolute;
-    right: 16px;
+    right: 14px;
     top: 50%;
+    width: 34px;
+    height: 46px;
+    display: flex;              /* 删、除 两个字上下排 */
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     border: none;
-    background: none;
-    color: #e74c3c;
-    font-size: 26px;
-    line-height: 1;
-    cursor: pointer;
-    padding: 6px 10px;
     border-radius: 8px;
+    background: #e74c3c;        /* 红底白字，一眼就知道是"危险操作" */
+    color: #fff;
+    font-size: 16px;
+    line-height: 1.2;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 0;
     z-index: 10;                /* 放在最上层，免得被翻页叶片盖住 */
     /* 平时藏在右边外面、点不到；长按后滑进来 */
     opacity: 0;
@@ -103,7 +110,7 @@
     pointer-events: auto;
     transform: translate(0, -50%);
   }
-  .delete-btn:hover { background: #fdecea; }   /* 鼠标移上去垫一层淡红 */
+  .delete-btn:hover { background: #c0392b; }   /* 鼠标移上去颜色再深一点 */
 
   /* 第一张卡片（最紧迫）：放大 + 上下布局 + 红边框突出 */
   .card.featured {
@@ -381,14 +388,27 @@
       return { el: clock, apply };
     }
 
-    /* ===== 长按卡片 → 删除键从右边缘滑出来 ===== */
-    let revealedCard = null;   /* 当前露出删除键的那张卡（同时只允许一张） */
+    /* ===== 长按卡片 → 删除块从右边缘滑出来 ===== */
+    let revealedCard = null;    /* 当前露出删除块的那张卡（同时只允许一张） */
+    let retractTimer = null;    /* "2 秒后自动收回"的定时器 */
+
+    function hideDelete() {     /* 把删除块收回去 */
+      if (revealedCard) revealedCard.classList.remove('revealed');
+      revealedCard = null;
+      clearTimeout(retractTimer);
+      retractTimer = null;
+    }
 
     function revealDelete(card) {
       if (revealedCard && revealedCard !== card) revealedCard.classList.remove('revealed');
       card.classList.add('revealed');
       card.dataset.revealedAt = Date.now();   /* 记下露出来的时刻，用来防"一松手就误删" */
       revealedCard = card;
+
+      /* 2 秒内鼠标没移到删除块上 → 自己收回。
+         鼠标一进到块里就会把这个定时器取消掉。 */
+      clearTimeout(retractTimer);
+      retractTimer = setTimeout(hideDelete, 2000);
     }
 
     function attachLongPress(card) {
@@ -420,12 +440,22 @@
       return card;
     }
 
-    /* ===== 删除键：长按露出来之后才点得到 ===== */
+    /* ===== 删除块：长按露出来之后才点得到 ===== */
     function makeDeleteBtn(event, card) {
       const btn = document.createElement('button');
       btn.className = 'delete-btn';
-      btn.textContent = '×';
-      btn.title = '删除';
+      btn.innerHTML = '<span>删</span><span>除</span>';   /* 两个字上下排 */
+      btn.setAttribute('aria-label', '删除');
+
+      /* 鼠标移进删除块 → 取消"2 秒自动收回"，让它留着你来点；
+         移出去 → 重新开始倒计时，2 秒后还是收回 */
+      btn.addEventListener('mouseenter', () => {
+        if (revealedCard === card) { clearTimeout(retractTimer); retractTimer = null; }
+      });
+      btn.addEventListener('mouseleave', () => {
+        if (revealedCard === card && !retractTimer) retractTimer = setTimeout(hideDelete, 2000);
+      });
+
       btn.onclick = () => {
         if (btn.disabled) return;   /* 防手快双击，一次删掉两条 */
         /* 长按刚露出来的那一下不算数，免得手指一松就把它删了 */
@@ -471,6 +501,8 @@
     function delEvent(event, card) {
       const index = events.indexOf(event);
       if (revealedCard === card) revealedCard = null;
+      clearTimeout(retractTimer);
+      retractTimer = null;
 
       /* 1. 先记下现在的高度，再归零 —— 高度、上下内边距、下外边距一起收，
             下面的卡片才会顺着往上移，而不是"啪"地跳上去 */
@@ -522,6 +554,8 @@
       if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }   /* 停掉旧的每秒定时器 */
       list.innerHTML = '';                                                /* 清空列表 */
       revealedCard = null;                                                /* 卡片全重建了，旧引用作废 */
+      clearTimeout(retractTimer);
+      retractTimer = null;                                                /* 收回定时器也一并清掉 */
 
       const sorted = [...events].sort((a, b) => daysLeft(a.date) - daysLeft(b.date));  /* 天少的排前面 */
 
