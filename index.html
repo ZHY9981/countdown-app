@@ -82,9 +82,9 @@
   .delete-btn {                 /* 长按卡片之后，才从右边缘滑出来的"删除"块 */
     position: absolute;
     right: 14px;
-    top: 50%;
+    top: 6px;                   /* 上下各留 6px —— 高度就跟着卡片走，卡片多高它多高 */
+    bottom: 6px;
     width: 34px;
-    height: 46px;
     display: flex;              /* 删、除 两个字上下排 */
     flex-direction: column;
     align-items: center;
@@ -102,13 +102,13 @@
     /* 平时藏在右边外面、点不到；长按后滑进来 */
     opacity: 0;
     pointer-events: none;
-    transform: translate(10px, -50%);
+    transform: translateX(10px);
     transition: opacity 0.18s ease, transform 0.18s ease, background 0.15s ease;
   }
   .card.revealed .delete-btn {
     opacity: 1;
     pointer-events: auto;
-    transform: translate(0, -50%);
+    transform: translateX(0);
   }
   .delete-btn:hover { background: #c0392b; }   /* 鼠标移上去颜色再深一点 */
 
@@ -389,8 +389,10 @@
     }
 
     /* ===== 长按卡片 → 删除块从右边缘滑出来 ===== */
+    const RETRACT_MS = 3000;    /* 鼠标停着不动这么久，就自动收回 */
+
     let revealedCard = null;    /* 当前露出删除块的那张卡（同时只允许一张） */
-    let retractTimer = null;    /* "2 秒后自动收回"的定时器 */
+    let retractTimer = null;    /* "收回"的倒计时 */
 
     function hideDelete() {     /* 把删除块收回去 */
       if (revealedCard) revealedCard.classList.remove('revealed');
@@ -399,17 +401,23 @@
       retractTimer = null;
     }
 
+    function armRetract() {     /* 重新开始"鼠标不动就收回"的倒计时 */
+      clearTimeout(retractTimer);
+      retractTimer = setTimeout(hideDelete, RETRACT_MS);
+    }
+
     function revealDelete(card) {
       if (revealedCard && revealedCard !== card) revealedCard.classList.remove('revealed');
       card.classList.add('revealed');
       card.dataset.revealedAt = Date.now();   /* 记下露出来的时刻，用来防"一松手就误删" */
       revealedCard = card;
-
-      /* 2 秒内鼠标没移到删除块上 → 自己收回。
-         鼠标一进到块里就会把这个定时器取消掉。 */
-      clearTimeout(retractTimer);
-      retractTimer = setTimeout(hideDelete, 2000);
+      armRetract();
     }
+
+    /* 鼠标只要有动静就重新计时：一直在动就一直留着，停下来 3 秒才收回 */
+    document.addEventListener('mousemove', () => {
+      if (revealedCard) armRetract();
+    });
 
     function attachLongPress(card) {
       let timer = null;
@@ -446,15 +454,6 @@
       btn.className = 'delete-btn';
       btn.innerHTML = '<span>删</span><span>除</span>';   /* 两个字上下排 */
       btn.setAttribute('aria-label', '删除');
-
-      /* 鼠标移进删除块 → 取消"2 秒自动收回"，让它留着你来点；
-         移出去 → 重新开始倒计时，2 秒后还是收回 */
-      btn.addEventListener('mouseenter', () => {
-        if (revealedCard === card) { clearTimeout(retractTimer); retractTimer = null; }
-      });
-      btn.addEventListener('mouseleave', () => {
-        if (revealedCard === card && !retractTimer) retractTimer = setTimeout(hideDelete, 2000);
-      });
 
       btn.onclick = () => {
         if (btn.disabled) return;   /* 防手快双击，一次删掉两条 */
