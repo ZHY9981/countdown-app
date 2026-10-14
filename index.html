@@ -13,27 +13,51 @@
   }
   h1 { color: #1a1a1a; }
 
-  .add-form { display: flex; gap: 8px; margin-bottom: 20px; align-items: center; }
+  /* 添加区：套一层白卡片，让它看起来像一块"操作区"，而不是散在那儿 */
+  .add-panel {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px 20px 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  }
+  .add-form { display: flex; gap: 8px; align-items: center; }
   .add-form input {
     padding: 8px 12px;
     border: 1px solid #ccc;
     border-radius: 8px;
     font-size: 15px;
+    outline: none;
+    transition: border-color 0.15s, background 0.15s;
   }
+  .add-form input:focus { border-color: #3d5a80; }
   #nameInput { flex: 1; }
+  .add-form input.invalid {          /* 没填的那一格：描红 + 淡红底，一眼看出漏了哪 */
+    border-color: #e74c3c;
+    background: #fff5f4;
+  }
   .add-form button {
     padding: 8px 20px;
     border: none;
     border-radius: 8px;
-    background: #e74c3c;
+    background: #3d5a80;             /* 沉稳的深蓝。红色专门留给"删除"，分工才清楚 */
     color: #fff;
     font-size: 15px;
     cursor: pointer;
+    transition: background 0.15s;
+  }
+  .add-form button:hover { background: #32506f; }
+
+  .add-hint {                        /* 填不全时的提示行。常占着位，页面不会上下跳 */
+    min-height: 18px;
+    font-size: 13px;
+    line-height: 18px;
+    color: #e74c3c;
   }
 
   /* 普通卡片：名字和天数一左一右 */
   .card {
-    position: relative;         /* 当"坐标原点"，好让删除按钮定位到右上角 */
+    position: relative;         /* 当"坐标原点"，好让删除按钮贴到右边缘 */
     background: #fff;
     border-radius: 12px;
     padding: 16px 20px;
@@ -42,24 +66,44 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    /* 长按要"按得住"，得禁止选中文字、禁止手机上弹长按菜单 */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    /* 长按唤出删除键、删除时卡片收起，都靠这几条过渡 */
+    transition: padding 0.2s ease, height 0.25s ease,
+                margin-bottom 0.25s ease, opacity 0.25s ease,
+                border-width 0.25s ease;
   }
+  .card.revealed { padding-right: 64px; }   /* 长按之后：右边让出位置给 × */
   .card .name { font-size: 18px; color: #333; }
   .card .days { font-size: 24px; font-weight: bold; color: #e74c3c; }
 
-  .delete-btn {                 /* 每张卡右上角的"×" */
+  .delete-btn {                 /* 长按卡片之后，才从右边缘滑出来的"×" */
     position: absolute;
-    top: 8px;
-    right: 10px;
+    right: 16px;
+    top: 50%;
     border: none;
     background: none;
-    color: #bbb;
-    font-size: 20px;
+    color: #e74c3c;
+    font-size: 26px;
     line-height: 1;
     cursor: pointer;
-    padding: 2px 6px;
+    padding: 6px 10px;
+    border-radius: 8px;
     z-index: 10;                /* 放在最上层，免得被翻页叶片盖住 */
+    /* 平时藏在右边外面、点不到；长按后滑进来 */
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(10px, -50%);
+    transition: opacity 0.18s ease, transform 0.18s ease, background 0.15s ease;
   }
-  .delete-btn:hover { color: #e74c3c; }   /* 鼠标移上去变红，提示"这是删除" */
+  .card.revealed .delete-btn {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate(0, -50%);
+  }
+  .delete-btn:hover { background: #fdecea; }   /* 鼠标移上去垫一层淡红 */
 
   /* 第一张卡片（最紧迫）：放大 + 上下布局 + 红边框突出 */
   .card.featured {
@@ -128,18 +172,70 @@
     transition: transform 0.3s ease-out 0.3s;
     z-index: 2;
   }
+
+  /* 精选卡：时钟两边本来就有空位，× 直接待在右边缘，不用让位置 */
+  .card.featured.revealed { padding-right: 20px; }
+
+  /* 一个事件都没有时的提示 */
+  .empty {
+    text-align: center;
+    color: #9aa3ad;
+    padding: 48px 20px;
+    font-size: 15px;
+  }
+
+  /* 底部那条"已删除 · 撤销"的提示条 */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: #2b2b2b;
+    color: #fff;
+    font-size: 15px;
+    padding: 12px 18px;
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, 16px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .toast.show {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate(-50%, 0);
+  }
+  .toast button {
+    border: none;
+    background: none;
+    color: #ff9b8c;              /* 提示条里的"撤销" */
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 2px 4px;
+  }
+  .toast button:hover { color: #ffc4ba; }
 </style>
 </head>
 <body>
   <h1>我的倒计时</h1>
 
-  <div class="add-form">
-    <input id="nameInput" type="text" placeholder="要惦记的事，比如：考研">
-    <input id="dateInput" type="date">
-    <button id="addBtn">添加</button>
+  <div class="add-panel">
+    <div class="add-form">
+      <input id="nameInput" type="text" placeholder="要惦记的事，比如：考研">
+      <input id="dateInput" type="date">
+      <button id="addBtn">添加</button>
+    </div>
+    <div id="addHint" class="add-hint"></div>
   </div>
 
   <div id="list"></div>
+
+  <div id="toast" class="toast"></div>
 
   <script>
     /* ===== 数据：打开时先试着从"存档"里读回来 ===== */
@@ -285,6 +381,33 @@
       return { el: clock, apply };
     }
 
+    /* ===== 长按卡片 → 删除键从右边缘滑出来 ===== */
+    let revealedCard = null;   /* 当前露出删除键的那张卡（同时只允许一张） */
+
+    function revealDelete(card) {
+      if (revealedCard && revealedCard !== card) revealedCard.classList.remove('revealed');
+      card.classList.add('revealed');
+      card.dataset.revealedAt = Date.now();   /* 记下露出来的时刻，用来防"一松手就误删" */
+      revealedCard = card;
+    }
+
+    function attachLongPress(card) {
+      let timer = null;
+      function cancel() { if (timer) { clearTimeout(timer); timer = null; } }
+      function start(e) {
+        if (e.type === 'mousedown' && e.button !== 0) return;   /* 只认鼠标左键 */
+        cancel();
+        timer = setTimeout(() => { timer = null; revealDelete(card); }, 500);   /* 按住 0.5 秒 */
+      }
+      card.addEventListener('mousedown', start);
+      card.addEventListener('touchstart', start, { passive: true });
+      /* 提前松手、鼠标移开、手指滑动 → 都不算长按 */
+      ['mouseup', 'mouseleave', 'touchend', 'touchcancel', 'touchmove']
+        .forEach(ev => card.addEventListener(ev, cancel));
+      /* 手机上长按会弹出系统菜单，挡掉它 */
+      card.addEventListener('contextmenu', e => e.preventDefault());
+    }
+
     /* ===== 造一张普通卡片 ===== */
     function makeCard(event) {
       const card = document.createElement('div');
@@ -292,25 +415,82 @@
       card.innerHTML =
         '<span class="name">' + event.name + '</span>' +
         '<span class="days">' + daysLeft(event.date) + ' 天</span>';
-      card.appendChild(makeDeleteBtn(event));
+      attachLongPress(card);
+      card.appendChild(makeDeleteBtn(event, card));
       return card;
     }
 
-    /* ===== 删除按钮：点一下，删掉"这一个事件" ===== */
-    function makeDeleteBtn(event) {
+    /* ===== 删除键：长按露出来之后才点得到 ===== */
+    function makeDeleteBtn(event, card) {
       const btn = document.createElement('button');
       btn.className = 'delete-btn';
       btn.textContent = '×';
       btn.title = '删除';
-      btn.onclick = () => delEvent(event);   /* 注意：删的是这个 event 本身，不是第几张 */
+      btn.onclick = () => {
+        if (btn.disabled) return;   /* 防手快双击，一次删掉两条 */
+        /* 长按刚露出来的那一下不算数，免得手指一松就把它删了 */
+        if (Date.now() - Number(card.dataset.revealedAt || 0) < 400) return;
+        btn.disabled = true;
+        delEvent(event, card);
+      };
       return btn;
     }
 
-    /* 从数组里去掉这个事件，存盘、重画 */
-    function delEvent(event) {
-      events = events.filter(e => e !== event);   /* 留下"不是它"的 → 等于删掉它 */
-      saveEvents();
-      render();
+    /* ===== 底部提示条："已删除 · 撤销" ===== */
+    const toast = document.getElementById('toast');
+    let toastTimer = null;
+
+    function hideToast() {
+      toast.classList.remove('show');
+      toastTimer = null;
+    }
+
+    function showUndo(event, index) {
+      toast.innerHTML = '';   /* 先清空前一条 */
+
+      const msg = document.createElement('span');
+      msg.textContent = '已删除「' + event.name + '」';
+      toast.appendChild(msg);
+
+      const undo = document.createElement('button');
+      undo.textContent = '撤销';
+      undo.onclick = () => {
+        events.splice(index, 0, event);   /* 放回原来的位置 */
+        saveEvents();
+        render();
+        hideToast();
+      };
+      toast.appendChild(undo);
+
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(hideToast, 5000);   /* 5 秒后自己消失 */
+    }
+
+    /* ===== 删除：先让卡片收起来，再从数据里删掉 ===== */
+    function delEvent(event, card) {
+      const index = events.indexOf(event);
+      if (revealedCard === card) revealedCard = null;
+
+      /* 1. 先记下现在的高度，再归零 —— 高度、上下内边距、下外边距一起收，
+            下面的卡片才会顺着往上移，而不是"啪"地跳上去 */
+      card.style.height = card.offsetHeight + 'px';
+      card.style.overflow = 'hidden';
+      void card.offsetHeight;            /* 逼浏览器结算一次，动画才会触发 */
+      card.style.height = '0px';
+      card.style.paddingTop = '0px';
+      card.style.paddingBottom = '0px';
+      card.style.marginBottom = '0px';
+      card.style.borderWidth = '0px';
+      card.style.opacity = '0';
+
+      /* 2. 动画放完（0.25 秒）之后，才真正从数据里删掉并重画 */
+      setTimeout(() => {
+        events.splice(index, 1);
+        saveEvents();
+        render();
+        showUndo(event, index);
+      }, 260);
     }
 
     /* ===== 造"第一张"卡片：放大 + 翻页时钟 ===== */
@@ -319,7 +499,8 @@
     function makeFeaturedCard(event) {
       const card = document.createElement('div');
       card.className = 'card featured';
-      card.appendChild(makeDeleteBtn(event));   /* 右上角的删除按钮 */
+      attachLongPress(card);
+      card.appendChild(makeDeleteBtn(event, card));
 
       const name = document.createElement('div');
       name.className = 'name';
@@ -340,8 +521,18 @@
     function render() {
       if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }   /* 停掉旧的每秒定时器 */
       list.innerHTML = '';                                                /* 清空列表 */
+      revealedCard = null;                                                /* 卡片全重建了，旧引用作废 */
 
       const sorted = [...events].sort((a, b) => daysLeft(a.date) - daysLeft(b.date));  /* 天少的排前面 */
+
+      if (sorted.length === 0) {                                          /* 一个都没有：总得说句话 */
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = '还没有惦记的事，在上面加一个吧';
+        list.appendChild(empty);
+        return;
+      }
+
       sorted.forEach((event, i) => {
         if (i === 0) list.appendChild(makeFeaturedCard(event));   /* 第一张：放大版 */
         else         list.appendChild(makeCard(event));           /* 其余：普通版 */
@@ -354,18 +545,40 @@
     const nameInput = document.getElementById('nameInput');
     const dateInput = document.getElementById('dateInput');
     const addBtn    = document.getElementById('addBtn');
+    const addHint   = document.getElementById('addHint');
 
-    addBtn.onclick = () => {
+    function addEvent() {
       const name = nameInput.value.trim();
       const date = dateInput.value;
-      if (!name || !date) return;
 
+      /* 先给漏填的那格描红 —— 否则点了按钮毫无反应，用户会以为坏了 */
+      nameInput.classList.toggle('invalid', !name);
+      dateInput.classList.toggle('invalid', !date);
+
+      if (!name || !date) {
+        addHint.textContent = '名字和日期都要填';
+        return;
+      }
+
+      addHint.textContent = '';
       events.push({ name: name, date: date });
       saveEvents();                 /* 存一份，关了也不丢 */
       nameInput.value = '';
       dateInput.value = '';
+      nameInput.focus();            /* 光标回到名字格，好连着加下一个 */
       render();                     /* 重画：自动重新排序 */
-    };
+    }
+
+    addBtn.onclick = addEvent;
+
+    /* 填完日期直接按回车也能添加；一动手打字就清掉红框和提示 */
+    [nameInput, dateInput].forEach(el => {
+      el.addEventListener('keydown', e => { if (e.key === 'Enter') addEvent(); });
+      el.addEventListener('input', () => {
+        el.classList.remove('invalid');
+        addHint.textContent = '';
+      });
+    });
   </script>
 </body>
 </html>
