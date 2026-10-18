@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <base href="https://countdown.local/">
+  <link rel="stylesheet" href="vendor/flip.min.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #eef1f5;
+      color: #171b23;
+      font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+      user-select: none;
+    }
+    .app {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-columns: 61fr 39fr;
+      gap: 18px;
+      padding: 32px 36px 26px;
+    }
+    .compact-stack {
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-right: 2px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .compact-stack::-webkit-scrollbar { width: 8px; }
+    .compact-stack::-webkit-scrollbar-thumb {
+      background: #cbd2dc;
+      border-radius: 8px;
+    }
+    .card {
+      position: relative;
+      flex: none;
+      background: #fff;
+      border: 1px solid #dde3eb;
+      border-radius: 15px;
+      box-shadow: 0 16px 38px rgba(20, 24, 32, .065);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      cursor: pointer;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .card.hero {
+      height: 100%;
+      padding: 28px 30px;
+    }
+    .card.selected {
+      border: 2px solid #2f6fed;
+      padding: 23px;
+      box-shadow: 0 18px 44px rgba(47, 111, 237, .12);
+    }
+    .card.hero.selected {
+      padding: 27px 29px;
+    }
+    .card-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+    .kicker {
+      color: #2f6fed;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 7px;
+    }
+    .name {
+      font-size: 26px;
+      line-height: 1.25;
+      font-weight: 750;
+    }
+    .hero .name { font-size: 34px; }
+    .date {
+      margin-top: 7px;
+      color: #788290;
+      font-size: 12px;
+    }
+    .status {
+      height: 24px;
+      padding: 0 9px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+      background: #eef2f7;
+      color: #5d6876;
+    }
+    .status.urgent { color: #2457c5; background: #e8efff; }
+    .status.today { color: #257054; background: #e3f3eb; }
+    .status.ended { color: #697382; background: #eef1f5; }
+    .clock {
+      margin-top: auto;
+      width: 100%;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .hero .clock { padding-bottom: 10px; }
+    .compact .clock { padding-bottom: 1px; }
+    .countdown-tick {
+      width: 100%;
+      text-align: center;
+      font-family: "Segoe UI", sans-serif;
+      font-variant-numeric: tabular-nums;
+      padding-bottom: .55em;
+    }
+    .hero .countdown-tick { font-size: 45px; }
+    .compact .countdown-tick { font-size: 24px; }
+    .countdown-tick .tick-group {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      vertical-align: bottom;
+    }
+    .countdown-tick .tick-group + .tick-group {
+      margin-left: .22em;
+    }
+    .countdown-tick .tick-label {
+      margin-top: .13em;
+      color: #7b8492;
+      font-size: .24em;
+      font-weight: 700;
+      letter-spacing: 0;
+      text-indent: 0;
+      white-space: nowrap;
+    }
+    .countdown-tick .tick-flip {
+      margin-left: .035em;
+      margin-right: .035em;
+      border-radius: .11em;
+      line-height: 1;
+    }
+    .countdown-tick .tick-flip-panel-front,
+    .countdown-tick .tick-flip-panel-back {
+      height: 50%;
+    }
+    .countdown-tick .tick-flip-panel-back {
+      top: 50%;
+    }
+    .countdown-tick .tick-flip-panel {
+      color: #f8f9fb;
+      background-color: #141820;
+    }
+    .countdown-tick .tick-credits {
+      display: none !important;
+    }
+    .compact-stack .card {
+      min-height: 210px;
+      flex: 1 0 210px;
+    }
+    .compact .clock {
+      min-height: 84px;
+    }
+    .compact .date { font-size: 11px; }
+    .compact .name { font-size: 20px; }
+    .empty-card {
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #7b8492;
+      font-size: 13px;
+      font-weight: 700;
+      background: rgba(255, 255, 255, .58);
+      border-style: dashed;
+    }
+    .empty-card:hover { background: #fff; }
+    @media (max-width: 900px) {
+      .app { padding: 22px 22px 18px; gap: 12px; }
+      .hero .countdown-tick { font-size: 37px; }
+      .compact .countdown-tick { font-size: 19px; }
+      .hero .name { font-size: 28px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section id="hero-slot"></section>
+    <section id="compact-stack" class="compact-stack"></section>
+  </main>
+
+  <script>
+    window.__COUNTDOWN_STATE__ = __STATE_JSON__;
+  </script>
+  <script>
+    (function () {
+      var state = window.__COUNTDOWN_STATE__ || { selectedId: "", events: [] };
+      var heroSlot = document.getElementById("hero-slot");
+      var compactStack = document.getElementById("compact-stack");
+
+      function createClockMarkup() {
+        return [
+          '<div class="tick countdown-tick" data-did-init="setupCountdownTick">',
+          '  <div data-repeat="true" data-layout="horizontal center"',
+          '       data-transform="preset(d, h, m, s) -> delay">',
+          '    <div class="tick-group">',
+          '      <div data-key="value" data-repeat="true" data-transform="pad(00) -> split -> delay">',
+          '        <span data-view="flip"></span>',
+          '      </div>',
+          '      <span data-key="label" data-view="text" class="tick-label"></span>',
+          '    </div>',
+          '  </div>',
+          '</div>'
+        ].join("");
+      }
+
+      function makeCard(event, featured) {
+        var card = document.createElement("article");
+        card.className = "card " + (featured ? "hero" : "compact");
+        if (event.id === state.selectedId) card.classList.add("selected");
+        card.dataset.id = event.id;
+
+        var head = document.createElement("div");
+        head.className = "card-head";
+
+        var info = document.createElement("div");
+        if (featured) {
+          var kicker = document.createElement("div");
+          kicker.className = "kicker";
+          kicker.textContent = "最近到期";
+          info.appendChild(kicker);
+        }
+        var name = document.createElement("div");
+        name.className = "name";
+        name.textContent = event.name;
+        info.appendChild(name);
+
+        var date = document.createElement("div");
+        date.className = "date";
+        date.textContent = event.dateText;
+        info.appendChild(date);
+        head.appendChild(info);
+
+        var status = document.createElement("span");
+        status.className = "status " + (event.statusClass || "normal");
+        status.textContent = event.statusText;
+        head.appendChild(status);
+        card.appendChild(head);
+
+        var clock = document.createElement("div");
+        clock.className = "clock";
+        clock.innerHTML = createClockMarkup();
+        var tick = clock.querySelector(".tick");
+        tick.dataset.target = event.targetIso;
+        tick.dataset.ended = event.ended ? "true" : "false";
+        card.appendChild(clock);
+
+        card.addEventListener("click", function () {
+          state.selectedId = event.id;
+          setSelected(event.id);
+          if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.postMessage({ type: "select", id: event.id });
+          }
+        });
+        return card;
+      }
+
+      function makeEmpty(featured) {
+        var card = document.createElement("article");
+        card.className = "card empty-card " + (featured ? "hero" : "compact");
+        card.textContent = "添加一个倒计时";
+        card.addEventListener("click", function () {
+          if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.postMessage({ type: "add" });
+          }
+        });
+        return card;
+      }
+
+      var events = state.events || [];
+      heroSlot.appendChild(events.length > 0 ? makeCard(events[0], true) : makeEmpty(true));
+      var compactCount = 0;
+      for (var i = 1; i < events.length; i++) {
+        compactStack.appendChild(makeCard(events[i], false));
+        compactCount++;
+      }
+      while (compactCount < 2) {
+        compactStack.appendChild(makeEmpty(false));
+        compactCount++;
+      }
+
+      window.setupCountdownTick = function (tick) {
+        tick.setConstant("DAY_PLURAL", "天");
+        tick.setConstant("DAY_SINGULAR", "天");
+        tick.setConstant("HOUR_PLURAL", "时");
+        tick.setConstant("HOUR_SINGULAR", "时");
+        tick.setConstant("MINUTE_PLURAL", "分");
+        tick.setConstant("MINUTE_SINGULAR", "分");
+        tick.setConstant("SECOND_PLURAL", "秒");
+        tick.setConstant("SECOND_SINGULAR", "秒");
+
+        if (tick.root.dataset.ended === "true") {
+          tick.value = { d: 0, h: 0, m: 0, s: 0 };
+          return;
+        }
+
+        Tick.count.down(new Date(tick.root.dataset.target)).onupdate = function (value) {
+          tick.value = value;
+        };
+      };
+
+      window.setSelected = function (id) {
+        var cards = document.querySelectorAll(".card[data-id]");
+        for (var i = 0; i < cards.length; i++) {
+          cards[i].classList.toggle("selected", cards[i].dataset.id === id);
+        }
+      };
+    })();
+  </script>
+  <script src="vendor/flip.min.js"></script>
+</body>
+</html>

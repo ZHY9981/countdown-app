@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>多倒计时界面概念</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    width: 1200px;
+    height: 760px;
+    margin: 0;
+    overflow: hidden;
+    font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+  }
+  body { background: #eef1f5; color: #171b23; }
+  .concept {
+    display: none;
+    width: 1200px;
+    height: 760px;
+    flex-direction: column;
+  }
+  .concept.active { display: flex; }
+  .titlebar {
+    height: 34px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    padding: 0 8px 0 12px;
+    background: #f8fafc;
+    color: #5e6878;
+    border-bottom: 1px solid #dfe4eb;
+    font-size: 12px;
+    user-select: none;
+  }
+  .app-mark {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 7px;
+    background: #151922;
+    color: #fff;
+    font-size: 8px;
+    font-weight: 700;
+  }
+  .window-controls {
+    margin-left: auto;
+    height: 100%;
+    display: flex;
+    align-items: stretch;
+  }
+  .window-controls span {
+    width: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Segoe UI Symbol", sans-serif;
+    font-size: 14px;
+  }
+  .workspace {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #eef1f5;
+  }
+  .bottom-bar {
+    height: 76px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    padding: 0 40px;
+    background: #fff;
+    border-top: 1px solid #dde2e9;
+  }
+  .selection-summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #5f6875;
+    font-size: 13px;
+  }
+  .selection-summary strong { color: #171b23; font-size: 15px; }
+  .summary-count {
+    height: 30px;
+    padding: 0 11px;
+    border-radius: 999px;
+    background: #eef2f7;
+    color: #4d5868;
+    display: flex;
+    align-items: center;
+    font-weight: 700;
+    font-size: 12px;
+  }
+  .action-group {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .action-button {
+    height: 42px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 17px;
+    font-size: 14px;
+    font-weight: 700;
+    border: 0;
+  }
+  .action-button.primary { background: #2f6fed; color: #fff; }
+  .action-button.secondary {
+    color: #283142;
+    background: #fff;
+    border: 1px solid #ced5df;
+  }
+  .icon-button { width: 42px; padding: 0; }
+  svg { display: block; }
+  .status-pill {
+    height: 24px;
+    padding: 0 9px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .status-pill.urgent { color: #2457c5; background: #e8efff; }
+  .status-pill.calm { color: #5d6876; background: #eef2f7; }
+  .status-pill.today { color: #257054; background: #e3f3eb; }
+  .meta-line {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: #737d8c;
+    font-size: 12px;
+  }
+  .digit-font {
+    font-family: Bahnschrift, "Segoe UI", sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* D: three equal cards */
+  .concept-d .workspace { padding: 50px 64px 38px; }
+  .three-grid {
+    width: 1072px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  .count-card {
+    height: 446px;
+    border-radius: 16px;
+    background: #fff;
+    border: 1px solid #dde3eb;
+    box-shadow: 0 16px 38px rgba(20, 24, 32, .065);
+    padding: 26px 24px 24px;
+    display: flex;
+    flex-direction: column;
+  }
+  .count-card.selected {
+    border: 2px solid #2f6fed;
+    padding: 25px 23px 23px;
+    box-shadow: 0 18px 44px rgba(47, 111, 237, .12);
+  }
+  .count-card .name {
+    font-size: 24px;
+    line-height: 1.25;
+    font-weight: 750;
+    margin-bottom: 9px;
+  }
+  .count-card .headline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .count-card .date-row {
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    color: #788290;
+    font-size: 12px;
+  }
+  .mini-clock {
+    margin-top: auto;
+    height: 154px;
+    border-radius: 11px;
+    background: #141820;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    padding: 0 19px;
+    box-shadow: 0 12px 30px rgba(20, 24, 32, .15);
+  }
+  .mini-day {
+    width: 91px;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+  }
+  .mini-day .value {
+    font-size: 57px;
+    line-height: .92;
+    font-weight: 600;
+  }
+  .mini-day .unit {
+    margin-top: 7px;
+    color: #aeb6c4;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .mini-divider {
+    align-self: stretch;
+    width: 1px;
+    background: #303642;
+    margin: 22px 15px;
+  }
+  .mini-time {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .mini-time .value {
+    font-size: 34px;
+    line-height: 1;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .mini-time .colon {
+    color: #77808d;
+    font-size: 22px;
+    margin: 0 3px;
+    display: inline-block;
+    transform: translateY(-3px);
+  }
+  .mini-time .units {
+    margin-top: 9px;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    color: #aeb6c4;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  /* E: featured + compact */
+  .concept-e .workspace { padding: 44px 64px 32px; }
+  .feature-grid {
+    width: 1072px;
+    display: grid;
+    grid-template-columns: 1.55fr 1fr;
+    gap: 20px;
+  }
+  .hero-card {
+    height: 456px;
+    border-radius: 16px;
+    background: #fff;
+    border: 2px solid #2f6fed;
+    box-shadow: 0 20px 48px rgba(47, 111, 237, .1);
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+  }
+  .hero-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .hero-kicker {
+    color: #2f6fed;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .hero-name {
+    font-size: 34px;
+    line-height: 1.2;
+    font-weight: 760;
+  }
+  .hero-date {
+    margin-top: 9px;
+    color: #788290;
+    font-size: 13px;
+  }
+  .hero-clock {
+    margin-top: auto;
+    height: 218px;
+    border-radius: 12px;
+    background: #141820;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    padding: 0 31px;
+    box-shadow: 0 16px 38px rgba(20, 24, 32, .18);
+  }
+  .hero-day {
+    width: 205px;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .hero-day .value {
+    font-size: 103px;
+    line-height: .92;
+    font-weight: 600;
+  }
+  .hero-day .unit {
+    margin-top: 8px;
+    color: #aeb6c4;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .hero-divider {
+    align-self: stretch;
+    width: 1px;
+    background: #303642;
+    margin: 31px 31px;
+  }
+  .hero-time {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-end;
+  }
+  .hero-time .value {
+    font-size: 70px;
+    line-height: 1;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .hero-time .colon {
+    color: #77808d;
+    font-size: 44px;
+    margin: 0 6px;
+    display: inline-block;
+    transform: translateY(-5px);
+  }
+  .hero-time .units {
+    width: 88%;
+    margin-top: 12px;
+    display: flex;
+    justify-content: space-between;
+    color: #aeb6c4;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .side-stack {
+    display: grid;
+    grid-template-rows: repeat(2, 1fr);
+    gap: 20px;
+  }
+  .compact-card {
+    border-radius: 15px;
+    background: #fff;
+    border: 1px solid #dde3eb;
+    box-shadow: 0 14px 32px rgba(20, 24, 32, .055);
+    padding: 23px 24px;
+    display: flex;
+    flex-direction: column;
+  }
+  .compact-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .compact-name {
+    font-size: 21px;
+    line-height: 1.3;
+    font-weight: 750;
+  }
+  .compact-date {
+    margin-top: 5px;
+    color: #788290;
+    font-size: 12px;
+  }
+  .compact-clock {
+    margin-top: auto;
+    height: 95px;
+    border-radius: 10px;
+    background: #141820;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    padding: 0 18px;
+  }
+  .compact-day {
+    width: 95px;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .compact-day .value { font-size: 46px; line-height: 1; font-weight: 600; }
+  .compact-day .unit { color: #aeb6c4; font-size: 11px; font-weight: 600; }
+  .compact-divider {
+    width: 1px;
+    align-self: stretch;
+    background: #303642;
+    margin: 16px 17px;
+  }
+  .compact-time {
+    margin-left: auto;
+    font-size: 31px;
+    line-height: 1;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .compact-time .colon {
+    color: #77808d;
+    font-size: 20px;
+    margin: 0 3px;
+    display: inline-block;
+    transform: translateY(-3px);
+  }
+
+  /* F: scalable rows */
+  .concept-f .workspace { padding: 50px 80px 38px; }
+  .rows-shell {
+    width: 1040px;
+    background: #fff;
+    border: 1px solid #dde3eb;
+    border-radius: 16px;
+    box-shadow: 0 18px 42px rgba(20, 24, 32, .06);
+    padding: 8px 28px;
+  }
+  .count-row {
+    height: 142px;
+    display: grid;
+    grid-template-columns: 1.35fr 240px 330px 110px;
+    align-items: center;
+    gap: 22px;
+    border-bottom: 1px solid #e7ebf0;
+    position: relative;
+  }
+  .count-row:last-child { border-bottom: 0; }
+  .count-row.selected {
+    background: #f5f8ff;
+    margin: 0 -28px;
+    padding: 0 28px;
+    border-radius: 10px;
+  }
+  .count-row.selected::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 24px;
+    bottom: 24px;
+    width: 3px;
+    border-radius: 3px;
+    background: #2f6fed;
+  }
+  .row-name {
+    font-size: 23px;
+    font-weight: 750;
+    line-height: 1.25;
+  }
+  .row-date {
+    margin-top: 7px;
+    color: #788290;
+    font-size: 12px;
+  }
+  .row-days {
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 7px;
+  }
+  .row-days .value {
+    font-size: 45px;
+    line-height: 1;
+    font-weight: 600;
+  }
+  .row-days .unit { color: #788290; font-size: 13px; font-weight: 600; }
+  .row-time {
+    text-align: right;
+    font-size: 48px;
+    line-height: 1;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .row-time .colon {
+    color: #9ca4af;
+    font-size: 29px;
+    margin: 0 4px;
+    display: inline-block;
+    transform: translateY(-4px);
+  }
+  .row-status { text-align: right; }
+
+  .concept-e .bottom-bar { background: #fff; }
+</style>
+</head>
+<body>
+  <section class="concept concept-d">
+    <div class="titlebar">
+      <span class="app-mark">C</span><span>倒计时</span>
+      <div class="window-controls"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <main class="workspace">
+      <div class="three-grid">
+        <article class="count-card selected">
+          <div class="headline">
+            <div>
+              <div class="name">产品发布</div>
+              <div class="meta-line" style="margin-top:6px">2026年10月21日</div>
+            </div>
+            <span class="status-pill urgent">还有 2 天</span>
+          </div>
+          <div class="mini-clock">
+            <div class="mini-day digit-font">
+              <span class="value">002</span>
+              <span class="unit">天</span>
+            </div>
+            <div class="mini-divider"></div>
+            <div class="mini-time digit-font">
+              <span class="value">05<span class="colon">:</span>13<span class="colon">:</span>09</span>
+              <span class="units"><span>时</span><span>分</span><span>秒</span></span>
+            </div>
+          </div>
+        </article>
+        <article class="count-card">
+          <div class="headline">
+            <div>
+              <div class="name">年度复盘</div>
+              <div class="meta-line" style="margin-top:6px">2026年11月25日</div>
+            </div>
+            <span class="status-pill calm">37 天</span>
+          </div>
+          <div class="mini-clock">
+            <div class="mini-day digit-font">
+              <span class="value">037</span>
+              <span class="unit">天</span>
+            </div>
+            <div class="mini-divider"></div>
+            <div class="mini-time digit-font">
+              <span class="value">05<span class="colon">:</span>13<span class="colon">:</span>09</span>
+              <span class="units"><span>时</span><span>分</span><span>秒</span></span>
+            </div>
+          </div>
+        </article>
+        <article class="count-card">
+          <div class="headline">
+            <div>
+              <div class="name">2027 黑客松</div>
+              <div class="meta-line" style="margin-top:6px">2027年6月1日</div>
+            </div>
+            <span class="status-pill calm">225 天</span>
+          </div>
+          <div class="mini-clock">
+            <div class="mini-day digit-font">
+              <span class="value">225</span>
+              <span class="unit">天</span>
+            </div>
+            <div class="mini-divider"></div>
+            <div class="mini-time digit-font">
+              <span class="value">05<span class="colon">:</span>13<span class="colon">:</span>09</span>
+              <span class="units"><span>时</span><span>分</span><span>秒</span></span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </main>
+    <footer class="bottom-bar">
+      <div class="selection-summary">
+        <span class="summary-count">3 个倒计时</span>
+        <span>当前选择</span>
+        <strong>产品发布</strong>
+      </div>
+      <div class="action-group">
+        <button class="action-button primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          添加
+        </button>
+        <button class="action-button secondary icon-button">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m4 16-.8 4.8L8 20 18.7 9.3l-4-4L4 16Z"/><path d="m13.5 6.5 4 4"/></svg>
+        </button>
+        <button class="action-button secondary icon-button">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>
+        </button>
+      </div>
+    </footer>
+  </section>
+
+  <section class="concept concept-e">
+    <div class="titlebar">
+      <span class="app-mark">C</span><span>倒计时</span>
+      <div class="window-controls"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <main class="workspace">
+      <div class="feature-grid">
+        <article class="hero-card">
+          <div class="hero-top">
+            <div>
+              <div class="hero-kicker">最近到期</div>
+              <div class="hero-name">产品发布</div>
+              <div class="hero-date">2026年10月21日 · 星期三</div>
+            </div>
+            <span class="status-pill urgent">还有 2 天</span>
+          </div>
+          <div class="hero-clock">
+            <div class="hero-day digit-font">
+              <span class="value">002</span>
+              <span class="unit">天</span>
+            </div>
+            <div class="hero-divider"></div>
+            <div class="hero-time digit-font">
+              <span class="value">05<span class="colon">:</span>13<span class="colon">:</span>09</span>
+              <span class="units"><span>时</span><span>分</span><span>秒</span></span>
+            </div>
+          </div>
+        </article>
+        <div class="side-stack">
+          <article class="compact-card">
+            <div class="compact-head">
+              <div>
+                <div class="compact-name">年度复盘</div>
+                <div class="compact-date">2026年11月25日</div>
+              </div>
+              <span class="status-pill calm">37 天</span>
+            </div>
+            <div class="compact-clock">
+              <div class="compact-day digit-font"><span class="value">037</span><span class="unit">天</span></div>
+              <div class="compact-divider"></div>
+              <div class="compact-time digit-font">05<span class="colon">:</span>13<span class="colon">:</span>09</div>
+            </div>
+          </article>
+          <article class="compact-card">
+            <div class="compact-head">
+              <div>
+                <div class="compact-name">2027 黑客松</div>
+                <div class="compact-date">2027年6月1日</div>
+              </div>
+              <span class="status-pill calm">225 天</span>
+            </div>
+            <div class="compact-clock">
+              <div class="compact-day digit-font"><span class="value">225</span><span class="unit">天</span></div>
+              <div class="compact-divider"></div>
+              <div class="compact-time digit-font">05<span class="colon">:</span>13<span class="colon">:</span>09</div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </main>
+    <footer class="bottom-bar">
+      <div class="selection-summary">
+        <span class="summary-count">3 个倒计时</span>
+        <span>主倒计时</span>
+        <strong>产品发布</strong>
+      </div>
+      <div class="action-group">
+        <button class="action-button primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          添加
+        </button>
+        <button class="action-button secondary icon-button">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m4 16-.8 4.8L8 20 18.7 9.3l-4-4L4 16Z"/><path d="m13.5 6.5 4 4"/></svg>
+        </button>
+        <button class="action-button secondary icon-button">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>
+        </button>
+      </div>
+    </footer>
+  </section>
+
+  <section class="concept concept-f">
+    <div class="titlebar">
+      <span class="app-mark">C</span><span>倒计时</span>
+      <div class="window-controls"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <main class="workspace">
+      <div class="rows-shell">
+        <div class="count-row selected">
+          <div>
+            <div class="row-name">产品发布</div>
+            <div class="row-date">2026年10月21日 · 星期三</div>
+          </div>
+          <div class="row-days digit-font"><span class="value">002</span><span class="unit">天</span></div>
+          <div class="row-time digit-font">05<span class="colon">:</span>13<span class="colon">:</span>09</div>
+          <div class="row-status"><span class="status-pill urgent">还有 2 天</span></div>
+        </div>
+        <div class="count-row">
+          <div>
+            <div class="row-name">年度复盘</div>
+            <div class="row-date">2026年11月25日 · 星期三</div>
+          </div>
+          <div class="row-days digit-font"><span class="value">037</span><span class="unit">天</span></div>
+          <div class="row-time digit-font">05<span class="colon">:</span>13<span class="colon">:</span>09</div>
+          <div class="row-status"><span class="status-pill calm">37 天</span></div>
+        </div>
+        <div class="count-row">
+          <div>
+            <div class="row-name">2027 黑客松</div>
+            <div class="row-date">2027年6月1日 · 星期二</div>
+          </div>
+          <div class="row-days digit-font"><span class="value">225</span><span class="unit">天</span></div>
+          <div class="row-time digit-font">05<span class="colon">:</span>13<span class="colon">:</span>09</div>
+          <div class="row-status"><span class="status-pill calm">225 天</span></div>
+        </div>
+      </div>
+    </main>
+    <footer class="bottom-bar">
+      <div class="selection-summary">
+        <span class="summary-count">3 个倒计时</span>
+        <span>当前选择</span>
+        <strong>产品发布</strong>
+      </div>
+      <div class="action-group">
+        <button class="action-button primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          添加
+        </button>
+        <button class="action-button secondary icon-button">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m4 16-.8 4.8L8 20 18.7 9.3l-4-4L4 16Z"/><path d="m13.5 6.5 4 4"/></svg>
+        </button>
+        <button class="action-button secondary icon-button">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>
+        </button>
+      </div>
+    </footer>
+  </section>
+
+  <script>
+    const concept = new URLSearchParams(location.search).get("concept") || "d";
+    const selected = document.querySelector(".concept-" + concept);
+    if (selected) selected.classList.add("active");
+  </script>
+</body>
+</html>

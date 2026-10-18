@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>倒计时界面概念</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    width: 1200px;
+    height: 760px;
+    margin: 0;
+    overflow: hidden;
+    font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+  }
+  body { background: #eef1f5; }
+  .concept {
+    display: none;
+    width: 1200px;
+    height: 760px;
+    flex-direction: column;
+    position: relative;
+  }
+  .concept.active { display: flex; }
+  .titlebar {
+    height: 34px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    padding: 0 8px 0 12px;
+    font-size: 12px;
+    user-select: none;
+  }
+  .app-mark {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 7px;
+    font-size: 8px;
+    font-weight: 700;
+  }
+  .window-controls {
+    margin-left: auto;
+    height: 100%;
+    display: flex;
+    align-items: stretch;
+  }
+  .window-controls span {
+    width: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Segoe UI Symbol", sans-serif;
+    font-size: 14px;
+  }
+  .workspace {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .bottom-bar {
+    height: 76px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    padding: 0 40px;
+  }
+  .action-group {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .select-wrap {
+    height: 42px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 14px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .select-wrap svg { flex: none; }
+  .select-arrow { margin-left: auto; opacity: .55; }
+  .action-button {
+    height: 42px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 17px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .icon-button {
+    width: 42px;
+    padding: 0;
+  }
+  svg { display: block; }
+  .meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+  .status-pill {
+    height: 25px;
+    padding: 0 10px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  /* A: balanced focus */
+  .concept-a { background: #eef1f5; color: #151922; }
+  .concept-a .titlebar {
+    background: #f8fafc;
+    color: #5e6878;
+    border-bottom: 1px solid #dfe4eb;
+  }
+  .concept-a .app-mark { background: #151922; color: #fff; }
+  .concept-a .window-controls span:hover { background: #e9edf3; }
+  .concept-a .workspace { padding-bottom: 18px; }
+  .concept-a .event-name {
+    font-size: 42px;
+    line-height: 1.15;
+    font-weight: 750;
+    text-align: center;
+  }
+  .concept-a .event-date {
+    color: #737d8c;
+    font-size: 15px;
+  }
+  .concept-a .status-pill { color: #2457c5; background: #e8efff; }
+  .concept-a .countdown {
+    margin-top: 58px;
+    display: flex;
+    align-items: flex-end;
+    gap: 18px;
+  }
+  .concept-a .day-panel,
+  .concept-a .time-panel {
+    height: 190px;
+    border-radius: 12px;
+    background: #141820;
+    color: #fff;
+    box-shadow: 0 18px 46px rgba(20, 24, 32, .13);
+    position: relative;
+    overflow: hidden;
+  }
+  .concept-a .day-panel {
+    width: 222px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .concept-a .time-panel {
+    width: 548px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .concept-a .day-number {
+    font-family: Bahnschrift, "Segoe UI", sans-serif;
+    font-size: 102px;
+    line-height: 1;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .concept-a .day-unit {
+    margin-top: 5px;
+    color: #aeb6c4;
+    font-size: 17px;
+    font-weight: 600;
+  }
+  .concept-a .time-value {
+    font-family: Bahnschrift, "Segoe UI", sans-serif;
+    font-size: 92px;
+    line-height: 1;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .concept-a .time-value .colon {
+    display: inline-block;
+    transform: translateY(-7px);
+    margin: 0 9px;
+    color: #6b7481;
+    font-size: 58px;
+  }
+  .concept-a .time-units {
+    width: 370px;
+    display: flex;
+    justify-content: space-between;
+    margin-top: 12px;
+    color: #aeb6c4;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .concept-a .bottom-bar {
+    background: #fff;
+    border-top: 1px solid #dde2e9;
+  }
+  .concept-a .select-wrap {
+    width: 300px;
+    background: #f5f7fa;
+    border: 1px solid #d9dfe8;
+    color: #202634;
+  }
+  .concept-a .action-button.primary { background: #2f6fed; color: #fff; }
+  .concept-a .action-button.secondary {
+    color: #283142;
+    background: #fff;
+    border: 1px solid #ced5df;
+  }
+
+  /* B: dark instrument */
+  .concept-b { background: #0d1015; color: #f5f7fa; }
+  .concept-b .titlebar {
+    background: #0a0d11;
+    color: #8b94a2;
+    border-bottom: 1px solid #20252d;
+  }
+  .concept-b .app-mark { background: #d9a044; color: #0d1015; }
+  .concept-b .workspace { padding-bottom: 20px; }
+  .concept-b .event-name {
+    font-size: 40px;
+    line-height: 1.15;
+    font-weight: 700;
+    text-align: center;
+  }
+  .concept-b .event-date { color: #8b94a2; font-size: 15px; }
+  .concept-b .status-pill { color: #e7b768; background: #2b2419; }
+  .concept-b .countdown {
+    width: 820px;
+    height: 202px;
+    margin-top: 56px;
+    display: flex;
+    border-radius: 10px;
+    background: #151a21;
+    border: 1px solid #2a3039;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, .4);
+    position: relative;
+    overflow: hidden;
+  }
+  .concept-b .countdown::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: #d9a044;
+  }
+  .concept-b .day-block {
+    width: 270px;
+    flex: none;
+    border-right: 1px solid #2a3039;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .concept-b .time-block {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .concept-b .caption {
+    color: #737d8b;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 5px;
+  }
+  .concept-b .day-value {
+    font-family: Bahnschrift, "Segoe UI", sans-serif;
+    color: #f7f8fa;
+    font-size: 104px;
+    line-height: .95;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .concept-b .time-value {
+    font-family: Bahnschrift, "Segoe UI", sans-serif;
+    color: #f7f8fa;
+    font-size: 94px;
+    line-height: 1;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .concept-b .time-value .colon {
+    color: #d9a044;
+    font-size: 58px;
+    margin: 0 8px;
+    display: inline-block;
+    transform: translateY(-7px);
+  }
+  .concept-b .bottom-bar {
+    background: #10151b;
+    border-top: 1px solid #20262e;
+  }
+  .concept-b .select-wrap {
+    width: 300px;
+    color: #d8dde5;
+    background: #171c23;
+    border: 1px solid #2c333d;
+  }
+  .concept-b .action-button.primary { background: #d9a044; color: #13171d; }
+  .concept-b .action-button.secondary {
+    color: #d8dde5;
+    background: #171c23;
+    border: 1px solid #2c333d;
+  }
+
+  /* C: editorial typography */
+  .concept-c { background: #f4f5f7; color: #111318; }
+  .concept-c .titlebar {
+    background: #fafbfc;
+    color: #646c78;
+    border-bottom: 1px solid #dfe2e7;
+  }
+  .concept-c .app-mark { background: #111318; color: #fff; }
+  .concept-c .workspace { padding-bottom: 22px; }
+  .concept-c .event-name {
+    font-size: 44px;
+    line-height: 1.1;
+    font-weight: 750;
+    text-align: center;
+  }
+  .concept-c .event-date { color: #747c87; font-size: 15px; }
+  .concept-c .status-pill { color: #2d5f4b; background: #e3f1e9; }
+  .concept-c .countdown {
+    margin-top: 66px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #12151a;
+  }
+  .concept-c .day-group {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+  }
+  .concept-c .day-value {
+    font-family: Bahnschrift, "Segoe UI", sans-serif;
+    font-size: 106px;
+    line-height: .88;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .concept-c .day-unit {
+    color: #6d7580;
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .concept-c .divider {
+    width: 1px;
+    height: 94px;
+    background: #c9ced6;
+    margin: 0 44px;
+  }
+  .concept-c .time-value {
+    font-family: Bahnschrift, "Segoe UI", sans-serif;
+    font-size: 96px;
+    line-height: .9;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .concept-c .time-value .colon {
+    color: #9aa1ab;
+    font-size: 58px;
+    margin: 0 10px;
+    display: inline-block;
+    transform: translateY(-7px);
+  }
+  .concept-c .bottom-bar {
+    background: #fafbfc;
+    border-top: 1px solid #d9dde3;
+  }
+  .concept-c .select-wrap {
+    width: 300px;
+    color: #20242c;
+    background: transparent;
+    border: 1px solid #cdd2da;
+  }
+  .concept-c .action-button.primary { background: #1e2734; color: #fff; }
+  .concept-c .action-button.secondary {
+    color: #20242c;
+    background: transparent;
+    border: 1px solid #cdd2da;
+  }
+</style>
+</head>
+<body>
+  <section class="concept concept-a">
+    <div class="titlebar">
+      <span class="app-mark">C</span>
+      <span>倒计时</span>
+      <div class="window-controls"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <main class="workspace">
+      <div class="event-name">产品发布</div>
+      <div class="meta-row" style="margin-top:14px">
+        <span class="event-date">2026年10月21日</span>
+        <span class="status-pill">还有 2 天</span>
+      </div>
+      <div class="countdown">
+        <div class="day-panel">
+          <div class="day-number">002</div>
+          <div class="day-unit">天</div>
+        </div>
+        <div class="time-panel">
+          <div class="time-value">05<span class="colon">:</span>13<span class="colon">:</span>09</div>
+          <div class="time-units"><span>时</span><span>分</span><span>秒</span></div>
+        </div>
+      </div>
+    </main>
+    <footer class="bottom-bar">
+      <div class="select-wrap">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <span>产品发布</span>
+        <svg class="select-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 10 5 5 5-5"/></svg>
+      </div>
+      <div class="action-group">
+        <button class="action-button primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          添加
+        </button>
+        <button class="action-button secondary icon-button" aria-label="编辑">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m4 16-.8 4.8L8 20 18.7 9.3l-4-4L4 16Z"/><path d="m13.5 6.5 4 4"/></svg>
+        </button>
+        <button class="action-button secondary icon-button" aria-label="删除">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>
+        </button>
+      </div>
+    </footer>
+  </section>
+
+  <section class="concept concept-b">
+    <div class="titlebar">
+      <span class="app-mark">C</span>
+      <span>倒计时</span>
+      <div class="window-controls"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <main class="workspace">
+      <div class="event-name">产品发布</div>
+      <div class="meta-row" style="margin-top:14px">
+        <span class="event-date">2026年10月21日</span>
+        <span class="status-pill">还有 2 天</span>
+      </div>
+      <div class="countdown">
+        <div class="day-block">
+          <div class="caption">剩余天数</div>
+          <div class="day-value">002</div>
+        </div>
+        <div class="time-block">
+          <div class="caption">时 · 分 · 秒</div>
+          <div class="time-value">05<span class="colon">:</span>13<span class="colon">:</span>09</div>
+        </div>
+      </div>
+    </main>
+    <footer class="bottom-bar">
+      <div class="select-wrap">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <span>产品发布</span>
+        <svg class="select-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 10 5 5 5-5"/></svg>
+      </div>
+      <div class="action-group">
+        <button class="action-button primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          添加
+        </button>
+        <button class="action-button secondary icon-button" aria-label="编辑">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m4 16-.8 4.8L8 20 18.7 9.3l-4-4L4 16Z"/><path d="m13.5 6.5 4 4"/></svg>
+        </button>
+        <button class="action-button secondary icon-button" aria-label="删除">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>
+        </button>
+      </div>
+    </footer>
+  </section>
+
+  <section class="concept concept-c">
+    <div class="titlebar">
+      <span class="app-mark">C</span>
+      <span>倒计时</span>
+      <div class="window-controls"><span>—</span><span>□</span><span>×</span></div>
+    </div>
+    <main class="workspace">
+      <div class="event-name">产品发布</div>
+      <div class="meta-row" style="margin-top:14px">
+        <span class="event-date">2026年10月21日</span>
+        <span class="status-pill">还有 2 天</span>
+      </div>
+      <div class="countdown">
+        <div class="day-group">
+          <span class="day-value">002</span>
+          <span class="day-unit">天</span>
+        </div>
+        <div class="divider"></div>
+        <div class="time-value">05<span class="colon">:</span>13<span class="colon">:</span>09</div>
+      </div>
+    </main>
+    <footer class="bottom-bar">
+      <div class="select-wrap">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <span>产品发布</span>
+        <svg class="select-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 10 5 5 5-5"/></svg>
+      </div>
+      <div class="action-group">
+        <button class="action-button primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          添加
+        </button>
+        <button class="action-button secondary icon-button" aria-label="编辑">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m4 16-.8 4.8L8 20 18.7 9.3l-4-4L4 16Z"/><path d="m13.5 6.5 4 4"/></svg>
+        </button>
+        <button class="action-button secondary icon-button" aria-label="删除">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>
+        </button>
+      </div>
+    </footer>
+  </section>
+
+  <script>
+    const concept = new URLSearchParams(location.search).get("concept") || "a";
+    const selected = document.querySelector(".concept-" + concept);
+    if (selected) selected.classList.add("active");
+  </script>
+</body>
+</html>
