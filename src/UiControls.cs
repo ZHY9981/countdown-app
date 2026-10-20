@@ -12,7 +12,8 @@ namespace CountdownApp
         Delete,
         Undo,
         Clock,
-        More
+        More,
+        Widget
     }
 
     public static class UiIconFactory
@@ -82,6 +83,12 @@ namespace CountdownApp
                     graphics.FillEllipse(brush, S(7), S(7), S(2), S(2));
                     graphics.FillEllipse(brush, S(11), S(7), S(2), S(2));
                 }
+            }
+            else if (glyph == AppGlyph.Widget)
+            {
+                graphics.DrawRectangle(pen, S(2.5f), S(3), S(11), S(10));
+                graphics.DrawLine(pen, S(8), S(3), S(8), S(13));
+                graphics.DrawLine(pen, S(8), S(8), S(13.5f), S(8));
             }
         }
     }

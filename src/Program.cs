@@ -15,6 +15,7 @@ namespace CountdownApp
             Application.SetCompatibleTextRenderingDefault(false);
 
             bool demoMode = false;
+            bool startInWidgetMode = false;
             bool minimumWindow = false;
             string screenshotPath = string.Empty;
             int screenshotDelayMs = 350;
@@ -24,6 +25,10 @@ namespace CountdownApp
                 if (string.Equals(args[i], "--demo", StringComparison.OrdinalIgnoreCase))
                 {
                     demoMode = true;
+                }
+                else if (string.Equals(args[i], "--widget", StringComparison.OrdinalIgnoreCase))
+                {
+                    startInWidgetMode = true;
                 }
                 else if (args[i] != null && args[i].StartsWith("--screenshot=", StringComparison.OrdinalIgnoreCase))
                 {
@@ -74,7 +79,11 @@ namespace CountdownApp
                 {
                     EventStore store = new EventStore();
                     AppState state = demoMode ? CreateDemoState() : LoadState(store);
-                    MainForm form = new MainForm(state, store, demoMode);
+                    MainForm form = new MainForm(
+                        state,
+                        store,
+                        demoMode,
+                        startInWidgetMode);
                     if (minimumWindow) form.Size = form.MinimumSize;
                     if (string.IsNullOrEmpty(screenshotPath))
                     {
@@ -166,7 +175,7 @@ namespace CountdownApp
             return state;
         }
 
-        private static AppState CreateDemoState()
+        internal static AppState CreateDemoState()
         {
             AppState state = new AppState();
             state.Initialized = true;

@@ -16,9 +16,12 @@ namespace CountdownApp
         private readonly AppState _state;
         private readonly EventStore _store;
         private readonly bool _demoMode;
+        private readonly bool _startInWidgetMode;
         private readonly Icon _appIcon;
         private readonly Icon _trayIcon;
         private readonly JavaScriptSerializer _serializer;
+        private readonly WidgetSettingsStore _widgetSettingsStore;
+        private readonly WidgetSettings _widgetSettings;
 
         private WebView2 _webView;
         private StatusPill _countLabel;
@@ -28,26 +31,41 @@ namespace CountdownApp
         private Button _undoButton;
         private FlowLayoutPanel _summaryPanel;
         private FlowLayoutPanel _actionPanel;
+        private Panel _actionBar;
+        private Panel _widgetHeader;
+        private Panel _workspace;
+        private TableLayoutPanel _rootLayout;
         private NotifyIcon _tray;
         private ContextMenuStrip _trayMenu;
         private Timer _uiTimer;
         private Timer _undoTimer;
+        private Timer _widgetLayerTimer;
         private ToolTip _toolTip;
         private bool _allowExit;
         private bool _trayHintShown;
         private bool _webReady;
+        private bool _widgetMode;
         private CountdownEvent _deletedEvent;
         private int _deletedIndex;
         private string _selectedId;
         private DateTime _renderedDate;
+        private Rectangle _mainBounds;
+        private Size _mainMinimumSize;
 
-        public MainForm(AppState state, EventStore store, bool demoMode)
+        public MainForm(
+            AppState state,
+            EventStore store,
+            bool demoMode,
+            bool startInWidgetMode)
         {
             _state = state;
             _store = store;
             _demoMode = demoMode;
+            _startInWidgetMode = startInWidgetMode;
             _serializer = new JavaScriptSerializer();
             _serializer.MaxJsonLength = int.MaxValue;
+            _widgetSettingsStore = new WidgetSettingsStore();
+            _widgetSettings = _widgetSettingsStore.Load();
             _appIcon = AppResources.CreateAppIcon();
             _trayIcon = AppResources.CreateTrayIcon();
             _toolTip = new ToolTip();
@@ -61,6 +79,7 @@ namespace CountdownApp
             StartPosition = FormStartPosition.CenterScreen;
             MinimumSize = AppResources.SS(900, 560);
             Size = AppResources.SS(1080, 680);
+            _mainMinimumSize = MinimumSize;
             BackColor = AppResources.Background;
             Font = AppResources.Font(9F, FontStyle.Regular);
             KeyPreview = true;
@@ -69,10 +88,21 @@ namespace CountdownApp
             BuildTray();
 
             Load += MainForm_Load;
-            Shown += delegate { PositionActionBar(); };
+            Shown += delegate
+            {
+                PositionActionBar();
+                if (_startInWidgetMode)
+                {
+                    BeginInvoke(new Action(SwitchToWidgetMode));
+                }
+            };
             FormClosing += MainForm_FormClosing;
             FormClosed += MainForm_FormClosed;
             KeyDown += MainForm_KeyDown;
+            LocationChanged += delegate
+            {
+                if (_widgetMode) SaveWidgetPosition();
+            };
 
             _uiTimer = new Timer();
             _uiTimer.Interval = 1000;
@@ -82,6 +112,16 @@ namespace CountdownApp
             _undoTimer = new Timer();
             _undoTimer.Interval = 5000;
             _undoTimer.Tick += UndoTimer_Tick;
+
+            _widgetLayerTimer = new Timer();
+            _widgetLayerTimer.Interval = 1200;
+            _widgetLayerTimer.Tick += delegate
+            {
+                if (_widgetMode && IsHandleCreated)
+                {
+                    DesktopLayerHost.PlaceBehindAppsAndAboveWallpaper(Handle);
+                }
+            };
         }
 
         private async void MainForm_Load(object sender, EventArgs e)
@@ -95,26 +135,32 @@ namespace CountdownApp
 
         private void BuildInterface()
         {
-            TableLayoutPanel root = new TableLayoutPanel();
-            root.Dock = DockStyle.Fill;
-            root.ColumnCount = 1;
-            root.RowCount = 2;
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, AppResources.SF(76F)));
-            Controls.Add(root);
+            _rootLayout = new TableLayoutPanel();
+            _rootLayout.Dock = DockStyle.Fill;
+            _rootLayout.ColumnCount = 1;
+            _rootLayout.RowCount = 3;
+            _rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 0F));
+            _rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            _rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, AppResources.SF(76F)));
+            Controls.Add(_rootLayout);
 
-            Panel workspace = new Panel();
-            workspace.Dock = DockStyle.Fill;
-            workspace.BackColor = AppResources.Background;
-            workspace.Padding = AppResources.SPad(30, 28, 34, 22);
-            root.Controls.Add(workspace, 0, 0);
+            _widgetHeader = BuildWidgetHeader();
+            _widgetHeader.Visible = false;
+            _rootLayout.Controls.Add(_widgetHeader, 0, 0);
+
+            _workspace = new Panel();
+            _workspace.Dock = DockStyle.Fill;
+            _workspace.BackColor = AppResources.Background;
+            _workspace.Padding = AppResources.SPad(30, 28, 34, 22);
+            _rootLayout.Controls.Add(_workspace, 0, 1);
 
             _webView = new WebView2();
             _webView.Dock = DockStyle.Fill;
             _webView.DefaultBackgroundColor = AppResources.Background;
-            workspace.Controls.Add(_webView);
+            _workspace.Controls.Add(_webView);
 
-            root.Controls.Add(BuildActionBar(), 0, 1);
+            _actionBar = BuildActionBar();
+            _rootLayout.Controls.Add(_actionBar, 0, 2);
         }
 
         private async System.Threading.Tasks.Task InitializeWebViewAsync()
@@ -215,7 +261,72 @@ namespace CountdownApp
             }
         }
 
-        private Control BuildActionBar()
+        private Panel BuildWidgetHeader()
+        {
+            Panel header = new Panel();
+            header.Dock = DockStyle.Fill;
+            header.BackColor = WidgetTheme.Background;
+            header.Cursor = Cursors.SizeAll;
+            header.MouseDown += delegate(object sender, MouseEventArgs e)
+            {
+                BeginWindowDrag(e);
+            };
+
+            RoundedPanel pill = new RoundedPanel();
+            pill.Location = AppResources.SP(12, 4);
+            pill.Size = AppResources.SS(190, 23);
+            pill.CornerRadius = AppResources.S(11);
+            pill.BorderColor = WidgetTheme.Border;
+            pill.DrawBorder = false;
+            pill.BackColor = WidgetTheme.HeaderPill;
+            pill.Cursor = Cursors.SizeAll;
+            pill.MouseDown += delegate(object sender, MouseEventArgs e)
+            {
+                BeginWindowDrag(e);
+            };
+            header.Controls.Add(pill);
+
+            Label title = new Label();
+            title.Text = "倒计时";
+            title.AutoSize = true;
+            title.ForeColor = WidgetTheme.Text;
+            title.BackColor = Color.Transparent;
+            title.Font = AppResources.Font(8F, FontStyle.Bold);
+            title.Location = AppResources.SP(12, 5);
+            title.MouseDown += delegate(object sender, MouseEventArgs e)
+            {
+                BeginWindowDrag(e);
+            };
+            pill.Controls.Add(title);
+
+            Label back = new Label();
+            back.Text = "↗";
+            back.AccessibleName = "返回倒计时主界面";
+            back.AutoSize = true;
+            back.ForeColor = WidgetTheme.Accent;
+            back.BackColor = Color.Transparent;
+            back.Font = AppResources.Font(11F, FontStyle.Bold);
+            back.Cursor = Cursors.Hand;
+            back.Location = AppResources.SP(148, 1);
+            back.Click += delegate { SwitchToMainMode(); };
+            pill.Controls.Add(back);
+
+            Label close = new Label();
+            close.Text = "×";
+            close.AccessibleName = "关闭";
+            close.AutoSize = true;
+            close.ForeColor = WidgetTheme.Muted;
+            close.BackColor = Color.Transparent;
+            close.Font = AppResources.Font(12F, FontStyle.Regular);
+            close.Cursor = Cursors.Hand;
+            close.Location = AppResources.SP(169, 1);
+            close.Click += delegate { Close(); };
+            pill.Controls.Add(close);
+
+            return header;
+        }
+
+        private Panel BuildActionBar()
         {
             Panel bar = new Panel();
             bar.Dock = DockStyle.Fill;
@@ -264,6 +375,16 @@ namespace CountdownApp
             _actionPanel.FlowDirection = FlowDirection.LeftToRight;
             _actionPanel.BackColor = AppResources.Surface;
             bar.Controls.Add(_actionPanel);
+
+            Button widgetToggle = CreateButton(
+                "组件",
+                76,
+                34,
+                false,
+                AppGlyph.Widget);
+            _toolTip.SetToolTip(widgetToggle, "切换到桌面小组件");
+            widgetToggle.Click += delegate { SwitchToWidgetMode(); };
+            _actionPanel.Controls.Add(widgetToggle);
 
             Button add = CreateButton("添加", 76, 34, true, AppGlyph.Add);
             add.Click += delegate { AddEvent(); };
@@ -405,7 +526,9 @@ namespace CountdownApp
                 string templatePath = Path.Combine(
                     AppDomain.CurrentDomain.BaseDirectory,
                     "web",
-                    "countdown.template.html");
+                    _widgetMode
+                        ? "widget.template.html"
+                        : "countdown.template.html");
                 string template = File.ReadAllText(templatePath);
                 string html = template.Replace("__STATE_JSON__", json);
                 _webView.NavigateToString(html);
@@ -448,6 +571,10 @@ namespace CountdownApp
                 else if (type == "add")
                 {
                     AddEvent();
+                }
+                else if (type == "openMain")
+                {
+                    SwitchToMainMode();
                 }
             }
             catch
@@ -612,6 +739,11 @@ namespace CountdownApp
             ToolStripMenuItem show = new ToolStripMenuItem("显示倒计时");
             show.Click += delegate { ShowFromTray(); };
             _trayMenu.Items.Add(show);
+
+            ToolStripMenuItem desktopWidget =
+                new ToolStripMenuItem("切换到小组件");
+            desktopWidget.Click += delegate { SwitchToWidgetMode(); };
+            _trayMenu.Items.Add(desktopWidget);
             _trayMenu.Items.Add(new ToolStripSeparator());
             ToolStripMenuItem exit = new ToolStripMenuItem("退出");
             exit.Click += delegate { ExitApplication(); };
@@ -635,6 +767,7 @@ namespace CountdownApp
                 return;
             }
 
+            SaveWidgetPosition();
             e.Cancel = true;
             Hide();
             if (!_trayHintShown)
@@ -651,6 +784,7 @@ namespace CountdownApp
         {
             if (_uiTimer != null) _uiTimer.Stop();
             if (_undoTimer != null) _undoTimer.Stop();
+            if (_widgetLayerTimer != null) _widgetLayerTimer.Stop();
             if (_webView != null) _webView.Dispose();
             if (_tray != null)
             {
@@ -676,6 +810,86 @@ namespace CountdownApp
             if (_tray != null) _tray.Visible = false;
             Close();
         }
+
+        private void SwitchToWidgetMode()
+        {
+            if (_widgetMode) return;
+
+            _mainBounds = Bounds;
+            _widgetMode = true;
+            _widgetLayerTimer.Start();
+
+            _rootLayout.RowStyles[0].Height = AppResources.SF(30F);
+            _rootLayout.RowStyles[2].Height = 0F;
+            _widgetHeader.Visible = true;
+            _actionBar.Visible = false;
+            _workspace.Padding = AppResources.SPad(8, 4, 8, 8);
+            FormBorderStyle = FormBorderStyle.None;
+            MinimumSize = Size.Empty;
+            MaximumSize = Size.Empty;
+            Size = new Size(620, 640);
+
+            Rectangle work = Screen.PrimaryScreen.WorkingArea;
+            int x = _widgetSettings.HasPosition
+                ? _widgetSettings.X
+                : work.Right - Width - AppResources.S(34);
+            int y = _widgetSettings.HasPosition
+                ? _widgetSettings.Y
+                : work.Bottom - Height - AppResources.S(34);
+            if (x < work.Left || y < work.Top
+                || x + Width > work.Right || y + Height > work.Bottom)
+            {
+                x = work.Right - Width - AppResources.S(34);
+                y = work.Bottom - Height - AppResources.S(34);
+            }
+            Location = new Point(x, y);
+            RefreshWebContent();
+            DesktopLayerHost.PlaceBehindAppsAndAboveWallpaper(Handle);
+        }
+
+        private void SwitchToMainMode()
+        {
+            if (!_widgetMode) return;
+
+            SaveWidgetPosition();
+            _widgetMode = false;
+            _widgetLayerTimer.Stop();
+            _rootLayout.RowStyles[0].Height = 0F;
+            _rootLayout.RowStyles[2].Height = AppResources.SF(76F);
+            _widgetHeader.Visible = false;
+            _actionBar.Visible = true;
+            _workspace.Padding = AppResources.SPad(30, 28, 34, 22);
+            FormBorderStyle = FormBorderStyle.Sizable;
+            MinimumSize = _mainMinimumSize;
+            MaximumSize = Size.Empty;
+            Bounds = _mainBounds;
+            Activate();
+            RefreshWebContent();
+        }
+
+        private void SaveWidgetPosition()
+        {
+            if (!_widgetMode || !IsHandleCreated) return;
+            _widgetSettings.X = Left;
+            _widgetSettings.Y = Top;
+            _widgetSettings.HasPosition = true;
+            try
+            {
+                _widgetSettingsStore.Save(_widgetSettings);
+            }
+            catch
+            {
+                // Position persistence must not affect the mode switch.
+            }
+        }
+
+        private void BeginWindowDrag(MouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left) return;
+            ReleaseCapture();
+            SendMessage(Handle, 0x00A1, new IntPtr(2), IntPtr.Zero);
+        }
+
 
         public void CaptureToFile(string path)
         {
@@ -726,6 +940,16 @@ namespace CountdownApp
         {
             get { return _webView != null; }
         }
+
+        [DllImport("user32.dll")]
+        private static extern bool ReleaseCapture();
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr SendMessage(
+            IntPtr hWnd,
+            int message,
+            IntPtr wParam,
+            IntPtr lParam);
 
         public async Task<string> GetWebDiagnosticsAsync()
         {

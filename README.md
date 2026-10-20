@@ -7,6 +7,9 @@ Windows 桌面倒计时工具。窗口、存档、托盘和操作栏使用 WinFo
 
 - 方案 E 多倒计时布局：左侧主倒计时，右侧两张紧凑倒计时同屏展示
 - 超过 3 个事件时，右侧紧凑区可滚动；点击卡片切换当前事件
+- 桌面小组件：纵向显示最多 3 个事件，最紧迫的主卡在最上方
+- 小组件使用半透明卡片和透明底部，不遮挡桌面背景
+- 主界面和桌面小组件合并为一个窗口，通过顶部/底部按钮切换
 - 底部极简操作栏集中处理当前事件的添加、编辑和删除
 - 使用 `pqina/flip` 原生翻页卡状态机和 3D 动画
 - `天、时、分、秒`标签由翻页组件自动对齐对应数字组
@@ -25,6 +28,10 @@ Windows 桌面倒计时工具。窗口、存档、托盘和操作栏使用 WinFo
 ```text
 build\CountdownApp.exe
 ```
+
+打开 `build\CountdownApp.exe` 后默认进入主倒计时界面。点击底部操作栏的
+“组件”按钮切换到小组件模式；小组件模式顶部点击 `↗` 返回主界面。两种模式
+共用同一份事件存档和同一个进程。
 
 运行环境需要 Microsoft Edge WebView2 Runtime。Windows 10/11 通常已随 Edge 安装。
 
@@ -56,6 +63,8 @@ run.cmd --theme=graphite
 ```text
 %LocalAppData%\CountdownApp\data\events.json
 ```
+
+桌面小组件的位置和显示状态保存在 `build\data\widget.json`。
 
 ## 维护
 

@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <base href="https://countdown.local/">
+  <link rel="stylesheet" href="vendor/flip.min.css">
+  <style>
+    * { box-sizing: border-box; }
+    :root {
+      --widget-bg: #10212a;
+      --card-bg: rgba(20, 31, 41, .94);
+      --card-bg-soft: rgba(20, 31, 41, .82);
+      --card-border: rgba(107, 143, 147, .55);
+      --text: #f4f7f4;
+      --muted: #8da4a6;
+      --accent: #72d7d2;
+      --urgent: #f0bd70;
+      --urgent-bg: rgba(53, 65, 46, .88);
+      --today: #8fd6aa;
+      --today-bg: rgba(35, 67, 54, .88);
+      --tile: #05090d;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--widget-bg);
+      color: var(--text);
+      font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+      user-select: none;
+    }
+    .app {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 8px 18px 20px;
+    }
+    .event-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+    }
+    .card {
+      position: relative;
+      min-height: 0;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 9px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, .24);
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      cursor: default;
+      backface-visibility: hidden;
+    }
+    .card.hero {
+      min-height: 214px;
+      padding: 18px 22px 14px;
+    }
+    .card.compact {
+      min-height: 128px;
+      background: var(--card-bg-soft);
+    }
+    .card.compact.last {
+      background: rgba(20, 31, 41, .64);
+      border-color: rgba(107, 143, 147, .32);
+      -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 76%, rgba(0, 0, 0, .18) 100%);
+      mask-image: linear-gradient(to bottom, #000 0%, #000 76%, rgba(0, 0, 0, .18) 100%);
+    }
+    .card-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .kicker {
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .name {
+      font-size: 19px;
+      line-height: 1.2;
+      font-weight: 750;
+      color: var(--text);
+    }
+    .hero .name { font-size: 27px; }
+    .date {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .status {
+      height: 21px;
+      padding: 0 8px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      font-size: 10px;
+      font-weight: 700;
+      white-space: nowrap;
+      background: rgba(29, 51, 58, .88);
+      color: #a9c5c4;
+    }
+    .status.urgent { color: var(--urgent); background: var(--urgent-bg); }
+    .status.today { color: var(--today); background: var(--today-bg); }
+    .status.ended { color: var(--muted); background: rgba(41, 52, 58, .8); }
+    .clock {
+      margin-top: auto;
+      width: 100%;
+      min-height: 52px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .hero .clock { min-height: 90px; }
+    .countdown-tick {
+      width: 100%;
+      text-align: center;
+      font-family: "Segoe UI", sans-serif;
+      font-variant-numeric: tabular-nums;
+      padding-bottom: .52em;
+    }
+    .hero .countdown-tick { font-size: 28px; }
+    .compact .countdown-tick { font-size: 18px; }
+    .countdown-tick .tick-group {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      vertical-align: bottom;
+    }
+    .countdown-tick .tick-group + .tick-group {
+      margin-left: .18em;
+    }
+    .countdown-tick .tick-label {
+      margin-top: .12em;
+      color: var(--muted);
+      font-size: .25em;
+      font-weight: 700;
+      letter-spacing: 0;
+      text-indent: 0;
+      white-space: nowrap;
+    }
+    .countdown-tick .tick-flip {
+      margin-left: .03em;
+      margin-right: .03em;
+      border-radius: .11em;
+      line-height: 1;
+    }
+    .countdown-tick .tick-flip-panel-front,
+    .countdown-tick .tick-flip-panel-back {
+      height: 50%;
+    }
+    .countdown-tick .tick-flip-panel-back { top: 50%; }
+    .countdown-tick .tick-flip-panel {
+      color: #f7fbf8;
+      background-color: var(--tile);
+    }
+    .countdown-tick .tick-credits { display: none !important; }
+    .compact .clock { min-height: 48px; }
+    .compact .date { font-size: 10px; }
+    .empty-card {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      background: rgba(20, 31, 41, .55);
+      border-style: dashed;
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section id="event-list" class="event-list"></section>
+  </main>
+
+  <script>
+    window.__COUNTDOWN_WIDGET_STATE__ = __STATE_JSON__;
+  </script>
+  <script>
+    (function () {
+      var state = window.__COUNTDOWN_WIDGET_STATE__ || { events: [] };
+      var eventList = document.getElementById("event-list");
+
+      function createClockMarkup() {
+        return [
+          '<div class="tick countdown-tick" data-did-init="setupCountdownTick">',
+          '  <div data-repeat="true" data-layout="horizontal center"',
+          '       data-transform="preset(d, h, m, s) -> delay">',
+          '    <div class="tick-group">',
+          '      <div data-key="value" data-repeat="true" data-transform="pad(00) -> split -> delay">',
+          '        <span data-view="flip"></span>',
+          '      </div>',
+          '      <span data-key="label" data-view="text" class="tick-label"></span>',
+          '    </div>',
+          '  </div>',
+          '</div>'
+        ].join("");
+      }
+
+      function makeCard(event, featured) {
+        var card = document.createElement("article");
+        card.className = "card " + (featured ? "hero" : "compact");
+        card.dataset.id = event.id;
+
+        var head = document.createElement("div");
+        head.className = "card-head";
+        var info = document.createElement("div");
+        if (featured) {
+          var kicker = document.createElement("div");
+          kicker.className = "kicker";
+          kicker.textContent = "最近到期";
+          info.appendChild(kicker);
+        }
+
+        var name = document.createElement("div");
+        name.className = "name";
+        name.textContent = event.name;
+        info.appendChild(name);
+
+        var date = document.createElement("div");
+        date.className = "date";
+        date.textContent = event.dateText;
+        info.appendChild(date);
+        head.appendChild(info);
+
+        var status = document.createElement("span");
+        status.className = "status " + (event.statusClass || "normal");
+        status.textContent = event.statusText;
+        head.appendChild(status);
+        card.appendChild(head);
+
+        var clock = document.createElement("div");
+        clock.className = "clock";
+        clock.innerHTML = createClockMarkup();
+        var tick = clock.querySelector(".tick");
+        tick.dataset.target = event.targetIso;
+        tick.dataset.ended = event.ended ? "true" : "false";
+        card.appendChild(clock);
+
+        card.addEventListener("click", function () {
+          if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.postMessage({ type: "select", id: event.id });
+          }
+        });
+        card.addEventListener("dblclick", function () {
+          if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.postMessage({ type: "openMain" });
+          }
+        });
+        return card;
+      }
+
+      function makeEmpty(featured) {
+        var card = document.createElement("article");
+        card.className = "card empty-card " + (featured ? "hero" : "compact");
+        card.textContent = "添加一个倒计时";
+        return card;
+      }
+
+      function render(nextState) {
+        state = nextState || { selectedId: "", events: [] };
+        eventList.innerHTML = "";
+
+        var events = state.events || [];
+        if (events.length === 0) {
+          eventList.appendChild(makeEmpty(true));
+          return;
+        }
+        for (var i = 0; i < events.length && i < 3; i++) {
+          var card = makeCard(events[i], i === 0);
+          if (i === events.length - 1 && i > 0) card.classList.add("last");
+          eventList.appendChild(card);
+        }
+        while (eventList.children.length < 3) {
+          eventList.appendChild(makeEmpty(false));
+        }
+        if (window.Tick && window.Tick.DOM
+            && typeof window.Tick.DOM.parse === "function") {
+          window.Tick.DOM.parse(document);
+        }
+      }
+
+      window.setupCountdownTick = function (tick) {
+        tick.setConstant("DAY_PLURAL", "天");
+        tick.setConstant("DAY_SINGULAR", "天");
+        tick.setConstant("HOUR_PLURAL", "时");
+        tick.setConstant("HOUR_SINGULAR", "时");
+        tick.setConstant("MINUTE_PLURAL", "分");
+        tick.setConstant("MINUTE_SINGULAR", "分");
+        tick.setConstant("SECOND_PLURAL", "秒");
+        tick.setConstant("SECOND_SINGULAR", "秒");
+
+        if (tick.root.dataset.ended === "true") {
+          tick.value = { d: 0, h: 0, m: 0, s: 0 };
+          return;
+        }
+
+        Tick.count.down(new Date(tick.root.dataset.target)).onupdate = function (value) {
+          tick.value = value;
+        };
+      };
+
+      if (window.chrome && window.chrome.webview) {
+        window.chrome.webview.addEventListener("message", function (event) {
+          render(event.data);
+        });
+      }
+      render(state);
+    })();
+  </script>
+  <script src="vendor/flip.min.js"></script>
+</body>
+</html>
