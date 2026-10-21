@@ -33,6 +33,9 @@ namespace CountdownApp
         private FlowLayoutPanel _actionPanel;
         private Panel _actionBar;
         private Panel _widgetHeader;
+        private RoundedPanel _widgetDragPill;
+        private RoundedPanel _widgetBackButton;
+        private RoundedPanel _widgetCloseButton;
         private Panel _workspace;
         private TableLayoutPanel _rootLayout;
         private NotifyIcon _tray;
@@ -272,58 +275,121 @@ namespace CountdownApp
                 BeginWindowDrag(e);
             };
 
-            RoundedPanel pill = new RoundedPanel();
-            pill.Location = AppResources.SP(12, 4);
-            pill.Size = AppResources.SS(190, 23);
-            pill.CornerRadius = AppResources.S(11);
-            pill.BorderColor = WidgetTheme.Border;
-            pill.DrawBorder = false;
-            pill.BackColor = WidgetTheme.HeaderPill;
-            pill.Cursor = Cursors.SizeAll;
-            pill.MouseDown += delegate(object sender, MouseEventArgs e)
+            _widgetDragPill = new RoundedPanel();
+            _widgetDragPill.CornerRadius = AppResources.S(20);
+            _widgetDragPill.BorderColor = WidgetTheme.Border;
+            _widgetDragPill.DrawBorder = true;
+            _widgetDragPill.BackColor = WidgetTheme.HeaderPill;
+            _widgetDragPill.Cursor = Cursors.SizeAll;
+            _widgetDragPill.MouseDown += delegate(object sender, MouseEventArgs e)
             {
                 BeginWindowDrag(e);
             };
-            header.Controls.Add(pill);
+            header.Controls.Add(_widgetDragPill);
+
+            Label dragDots = new Label();
+            dragDots.Text = "···";
+            dragDots.Dock = DockStyle.Left;
+            dragDots.Width = AppResources.S(32);
+            dragDots.TextAlign = ContentAlignment.MiddleCenter;
+            dragDots.ForeColor = WidgetTheme.Muted;
+            dragDots.BackColor = Color.Transparent;
+            dragDots.Font = AppResources.Font(9F, FontStyle.Bold);
+            dragDots.Cursor = Cursors.SizeAll;
+            dragDots.MouseDown += delegate(object sender, MouseEventArgs e)
+            {
+                BeginWindowDrag(e);
+            };
+            _widgetDragPill.Controls.Add(dragDots);
 
             Label title = new Label();
             title.Text = "倒计时";
-            title.AutoSize = true;
+            title.Dock = DockStyle.Fill;
+            title.TextAlign = ContentAlignment.MiddleLeft;
+            title.Padding = AppResources.SPad(34, 0, 0, 0);
             title.ForeColor = WidgetTheme.Text;
             title.BackColor = Color.Transparent;
-            title.Font = AppResources.Font(8F, FontStyle.Bold);
-            title.Location = AppResources.SP(12, 5);
+            title.Font = AppResources.Font(9F, FontStyle.Bold);
             title.MouseDown += delegate(object sender, MouseEventArgs e)
             {
                 BeginWindowDrag(e);
             };
-            pill.Controls.Add(title);
+            _widgetDragPill.Controls.Add(title);
 
-            Label back = new Label();
-            back.Text = "↗";
-            back.AccessibleName = "返回倒计时主界面";
-            back.AutoSize = true;
-            back.ForeColor = WidgetTheme.Accent;
-            back.BackColor = Color.Transparent;
-            back.Font = AppResources.Font(11F, FontStyle.Bold);
-            back.Cursor = Cursors.Hand;
-            back.Location = AppResources.SP(148, 1);
-            back.Click += delegate { SwitchToMainMode(); };
-            pill.Controls.Add(back);
+            _widgetBackButton = CreateWidgetHeaderButton(
+                "↗",
+                "返回倒计时主界面",
+                WidgetTheme.Accent,
+                delegate { SwitchToMainMode(); });
+            header.Controls.Add(_widgetBackButton);
 
-            Label close = new Label();
-            close.Text = "×";
-            close.AccessibleName = "关闭";
-            close.AutoSize = true;
-            close.ForeColor = WidgetTheme.Muted;
-            close.BackColor = Color.Transparent;
-            close.Font = AppResources.Font(12F, FontStyle.Regular);
-            close.Cursor = Cursors.Hand;
-            close.Location = AppResources.SP(169, 1);
-            close.Click += delegate { Close(); };
-            pill.Controls.Add(close);
+            _widgetCloseButton = CreateWidgetHeaderButton(
+                "×",
+                "关闭",
+                WidgetTheme.Muted,
+                delegate { Close(); });
+            header.Controls.Add(_widgetCloseButton);
+
+            header.Resize += delegate { PositionWidgetHeaderControls(); };
 
             return header;
+        }
+
+        private RoundedPanel CreateWidgetHeaderButton(
+            string glyph,
+            string accessibleName,
+            Color foreground,
+            EventHandler click)
+        {
+            RoundedPanel button = new RoundedPanel();
+            button.CornerRadius = AppResources.S(8);
+            button.BorderColor = WidgetTheme.BorderSoft;
+            button.DrawBorder = true;
+            button.BackColor = WidgetTheme.HeaderButton;
+            button.Cursor = Cursors.Hand;
+            button.AccessibleName = accessibleName;
+
+            Label label = new Label();
+            label.Text = glyph;
+            label.Dock = DockStyle.Fill;
+            label.TextAlign = ContentAlignment.MiddleCenter;
+            label.ForeColor = foreground;
+            label.BackColor = Color.Transparent;
+            label.Font = AppResources.Font(12F, FontStyle.Bold);
+            label.Cursor = Cursors.Hand;
+            button.Controls.Add(label);
+
+            button.Click += click;
+            label.Click += click;
+            button.MouseEnter += delegate { button.BackColor = WidgetTheme.HeaderButtonHover; };
+            button.MouseLeave += delegate { button.BackColor = WidgetTheme.HeaderButton; };
+            label.MouseEnter += delegate { button.BackColor = WidgetTheme.HeaderButtonHover; };
+            label.MouseLeave += delegate { button.BackColor = WidgetTheme.HeaderButton; };
+            return button;
+        }
+
+        private void PositionWidgetHeaderControls()
+        {
+            if (_widgetHeader == null
+                || _widgetDragPill == null
+                || _widgetBackButton == null
+                || _widgetCloseButton == null) return;
+
+            int padding = AppResources.S(10);
+            int gap = AppResources.S(8);
+            int buttonSize = AppResources.S(40);
+            int buttonTop = Math.Max(0, (_widgetHeader.ClientSize.Height - buttonSize) / 2);
+            int closeX = Math.Max(padding, _widgetHeader.ClientSize.Width - padding - buttonSize);
+            int backX = Math.Max(padding, closeX - gap - buttonSize);
+            int pillWidth = Math.Max(AppResources.S(180), backX - padding - gap);
+
+            _widgetDragPill.SetBounds(
+                padding,
+                buttonTop,
+                pillWidth,
+                buttonSize);
+            _widgetBackButton.SetBounds(backX, buttonTop, buttonSize, buttonSize);
+            _widgetCloseButton.SetBounds(closeX, buttonTop, buttonSize, buttonSize);
         }
 
         private Panel BuildActionBar()
@@ -819,15 +885,19 @@ namespace CountdownApp
             _widgetMode = true;
             _widgetLayerTimer.Start();
 
-            _rootLayout.RowStyles[0].Height = AppResources.SF(30F);
+            _rootLayout.RowStyles[0].Height = AppResources.SF(52F);
             _rootLayout.RowStyles[2].Height = 0F;
             _widgetHeader.Visible = true;
             _actionBar.Visible = false;
-            _workspace.Padding = AppResources.SPad(8, 4, 8, 8);
+            _workspace.Padding = AppResources.SPad(0, 0, 0, 0);
+            _workspace.BackColor = WidgetTheme.Background;
+            _widgetHeader.BackColor = WidgetTheme.Background;
+            BackColor = WidgetTheme.Background;
+            _webView.DefaultBackgroundColor = WidgetTheme.Background;
             FormBorderStyle = FormBorderStyle.None;
             MinimumSize = Size.Empty;
             MaximumSize = Size.Empty;
-            Size = new Size(620, 640);
+            Size = new Size(620, 680);
 
             Rectangle work = Screen.PrimaryScreen.WorkingArea;
             int x = _widgetSettings.HasPosition
@@ -843,6 +913,7 @@ namespace CountdownApp
                 y = work.Bottom - Height - AppResources.S(34);
             }
             Location = new Point(x, y);
+            PositionWidgetHeaderControls();
             RefreshWebContent();
             DesktopLayerHost.PlaceBehindAppsAndAboveWallpaper(Handle);
         }
@@ -859,6 +930,10 @@ namespace CountdownApp
             _widgetHeader.Visible = false;
             _actionBar.Visible = true;
             _workspace.Padding = AppResources.SPad(30, 28, 34, 22);
+            _workspace.BackColor = AppResources.Background;
+            _widgetHeader.BackColor = WidgetTheme.Background;
+            BackColor = AppResources.Background;
+            _webView.DefaultBackgroundColor = AppResources.Background;
             FormBorderStyle = FormBorderStyle.Sizable;
             MinimumSize = _mainMinimumSize;
             MaximumSize = Size.Empty;
@@ -958,7 +1033,29 @@ namespace CountdownApp
                 return "WebView2 is not ready.";
             }
             return await _webView.CoreWebView2.ExecuteScriptAsync(
-                "JSON.stringify({ready:document.readyState, ticks:document.querySelectorAll('.tick').length, cards:document.querySelectorAll('.card').length, text:document.body.innerText.slice(0,500)})");
+                @"JSON.stringify({
+                    ready:document.readyState,
+                    ticks:document.querySelectorAll('.tick').length,
+                    cards:document.querySelectorAll('.card').length,
+                    viewport:{width:innerWidth,height:innerHeight},
+                    compactRows:Array.prototype.map.call(document.querySelectorAll('.compact'),function(card){
+                        var head=card.querySelector('.card-head');
+                        var clock=card.querySelector('.clock');
+                        var tick=card.querySelector('.countdown-tick');
+                        var layout=card.querySelector('[data-layout]');
+                        var groups=card.querySelectorAll('.tick-group');
+                        return {
+                            card:card.getBoundingClientRect().width,
+                            head:head?head.getBoundingClientRect().width:0,
+                            clock:clock?clock.getBoundingClientRect().width:0,
+                            tick:tick?tick.getBoundingClientRect().width:0,
+                            layout:layout?layout.getBoundingClientRect().width:0,
+                            groups:groups.length,
+                            groupWidths:Array.prototype.map.call(groups,function(group){return group.getBoundingClientRect().width;})
+                        };
+                    }),
+                    text:document.body.innerText.slice(0,500)
+                })");
         }
 
         private static bool IsAutomationRun()

@@ -5,34 +5,38 @@ namespace CountdownApp
     internal static class WidgetTheme
     {
         public static readonly Color Background =
-            Color.FromArgb(16, 33, 42);
+            Color.FromArgb(15, 22, 28);
         public static readonly Color Card =
-            Color.FromArgb(245, 20, 31, 41);
+            Color.FromArgb(238, 10, 18, 24);
         public static readonly Color CardSoft =
-            Color.FromArgb(220, 20, 31, 41);
+            Color.FromArgb(170, 9, 16, 21);
         public static readonly Color CardFaded =
-            Color.FromArgb(175, 20, 31, 41);
+            Color.FromArgb(125, 9, 16, 21);
         public static readonly Color Border =
-            Color.FromArgb(120, 107, 143, 147);
+            Color.FromArgb(70, 217, 230, 226);
         public static readonly Color BorderSoft =
-            Color.FromArgb(90, 107, 143, 147);
+            Color.FromArgb(42, 217, 230, 226);
         public static readonly Color Text =
-            Color.FromArgb(244, 247, 244);
+            Color.FromArgb(247, 248, 244);
         public static readonly Color Muted =
-            Color.FromArgb(141, 164, 166);
+            Color.FromArgb(170, 181, 178);
         public static readonly Color Accent =
-            Color.FromArgb(114, 215, 210);
+            Color.FromArgb(228, 179, 106);
         public static readonly Color Urgent =
-            Color.FromArgb(240, 189, 112);
+            Color.FromArgb(239, 194, 127);
         public static readonly Color UrgentBackground =
-            Color.FromArgb(150, 53, 65, 46);
+            Color.FromArgb(38, 231, 174, 92);
         public static readonly Color Today =
-            Color.FromArgb(143, 214, 170);
+            Color.FromArgb(183, 204, 199);
         public static readonly Color TodayBackground =
-            Color.FromArgb(150, 35, 67, 54);
+            Color.FromArgb(34, 159, 187, 181);
         public static readonly Color Tile =
-            Color.FromArgb(5, 9, 13);
+            Color.FromArgb(7, 10, 13);
         public static readonly Color HeaderPill =
-            Color.FromArgb(210, 13, 27, 35);
+            Color.FromArgb(178, 9, 15, 20);
+        public static readonly Color HeaderButton =
+            Color.FromArgb(132, 9, 15, 20);
+        public static readonly Color HeaderButtonHover =
+            Color.FromArgb(188, 23, 33, 40);
     }
 }

@@ -8,18 +8,20 @@
   <style>
     * { box-sizing: border-box; }
     :root {
-      --widget-bg: #10212a;
-      --card-bg: rgba(20, 31, 41, .94);
-      --card-bg-soft: rgba(20, 31, 41, .82);
-      --card-border: rgba(107, 143, 147, .55);
-      --text: #f4f7f4;
-      --muted: #8da4a6;
-      --accent: #72d7d2;
-      --urgent: #f0bd70;
-      --urgent-bg: rgba(53, 65, 46, .88);
-      --today: #8fd6aa;
-      --today-bg: rgba(35, 67, 54, .88);
-      --tile: #05090d;
+      --widget-bg: #0f161c;
+      --card-bg: rgba(10, 18, 24, .82);
+      --list-bg: rgba(9, 16, 21, .50);
+      --list-bg-last: rgba(9, 16, 21, .34);
+      --card-border: rgba(217, 230, 226, .18);
+      --list-border: rgba(217, 230, 226, .16);
+      --text: #f7f8f4;
+      --muted: #aab5b2;
+      --accent: #e4b36a;
+      --urgent: #efc27f;
+      --urgent-bg: rgba(231, 174, 92, .15);
+      --today: #b7ccc7;
+      --today-bg: rgba(159, 187, 181, .13);
+      --tile: #070a0d;
     }
     html, body {
       width: 100%;
@@ -36,13 +38,12 @@
       height: 100%;
       display: flex;
       flex-direction: column;
-      gap: 10px;
       padding: 8px 18px 20px;
     }
     .event-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+      flex: 1;
+      display: grid;
+      grid-template-rows: minmax(0, 1.9fr) minmax(0, 1fr) minmax(0, 1fr);
       min-height: 0;
     }
     .card {
@@ -50,7 +51,7 @@
       min-height: 0;
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 9px;
+      border-radius: 8px;
       box-shadow: 0 12px 28px rgba(0, 0, 0, .24);
       padding: 14px 18px;
       display: flex;
@@ -59,18 +60,33 @@
       backface-visibility: hidden;
     }
     .card.hero {
-      min-height: 214px;
+      margin-bottom: 8px;
       padding: 18px 22px 14px;
+      border-color: var(--card-border);
+      background: var(--card-bg);
+      box-shadow: 0 18px 44px rgba(0, 0, 0, .28);
+      -webkit-backdrop-filter: blur(24px) saturate(1.12);
+      backdrop-filter: blur(24px) saturate(1.12);
     }
     .card.compact {
-      min-height: 128px;
-      background: var(--card-bg-soft);
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--list-bg);
+      border: 0;
+      border-top: 1px solid var(--list-border);
+      border-radius: 0;
+      box-shadow: none;
+      -webkit-backdrop-filter: blur(18px) saturate(1.08);
+      backdrop-filter: blur(18px) saturate(1.08);
     }
     .card.compact.last {
-      background: rgba(20, 31, 41, .64);
-      border-color: rgba(107, 143, 147, .32);
-      -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 76%, rgba(0, 0, 0, .18) 100%);
-      mask-image: linear-gradient(to bottom, #000 0%, #000 76%, rgba(0, 0, 0, .18) 100%);
+      background: var(--list-bg-last);
+      border-top-color: rgba(158, 186, 184, .16);
+      -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 58%, rgba(0, 0, 0, .16) 100%);
+      mask-image: linear-gradient(to bottom, #000 0%, #000 58%, rgba(0, 0, 0, .16) 100%);
     }
     .card-head {
       display: flex;
@@ -105,8 +121,8 @@
       font-size: 10px;
       font-weight: 700;
       white-space: nowrap;
-      background: rgba(29, 51, 58, .88);
-      color: #a9c5c4;
+      background: rgba(159, 187, 181, .13);
+      color: #b7ccc7;
     }
     .status.urgent { color: var(--urgent); background: var(--urgent-bg); }
     .status.today { color: var(--today); background: var(--today-bg); }
@@ -128,7 +144,6 @@
       padding-bottom: .52em;
     }
     .hero .countdown-tick { font-size: 28px; }
-    .compact .countdown-tick { font-size: 18px; }
     .countdown-tick .tick-group {
       display: inline-flex;
       flex-direction: column;
@@ -165,6 +180,53 @@
     .countdown-tick .tick-credits { display: none !important; }
     .compact .clock { min-height: 48px; }
     .compact .date { font-size: 10px; }
+    .compact .card-head {
+      width: 142px;
+      flex: 0 0 142px;
+      align-items: flex-start;
+    }
+    .compact .card-head > div { min-width: 0; }
+    .compact .name {
+      font-size: 18px;
+      line-height: 1.18;
+    }
+    .compact-meta {
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 5px;
+    }
+    .compact .date {
+      margin-top: 0;
+      font-size: 9px;
+    }
+    .compact .status {
+      height: 18px;
+      padding: 0 6px;
+      font-size: 8px;
+    }
+    .compact .clock {
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
+      margin-top: 0;
+      justify-content: flex-end;
+    }
+    .compact .countdown-tick {
+      text-align: right;
+      font-size: 15px;
+    }
+    .compact .countdown-tick [data-layout~="horizontal"] {
+      justify-content: flex-end;
+      flex-wrap: nowrap;
+    }
+    .compact .countdown-tick .tick-group {
+      flex: 0 0 auto;
+    }
+    .compact .countdown-tick .tick-label {
+      font-size: 8px;
+    }
     .empty-card {
       display: flex;
       align-items: center;
@@ -174,6 +236,11 @@
       font-weight: 700;
       background: rgba(20, 31, 41, .55);
       border-style: dashed;
+    }
+    .empty-card.compact {
+      background: rgba(20, 31, 41, .18);
+      border: 0;
+      border-top: 1px dashed rgba(158, 186, 184, .18);
     }
   </style>
 </head>
@@ -229,13 +296,24 @@
         var date = document.createElement("div");
         date.className = "date";
         date.textContent = event.dateText;
-        info.appendChild(date);
+        if (featured) {
+          info.appendChild(date);
+        }
         head.appendChild(info);
 
         var status = document.createElement("span");
         status.className = "status " + (event.statusClass || "normal");
         status.textContent = event.statusText;
-        head.appendChild(status);
+        if (featured) {
+          head.appendChild(status);
+        }
+        else {
+          var meta = document.createElement("div");
+          meta.className = "compact-meta";
+          meta.appendChild(date);
+          meta.appendChild(status);
+          info.appendChild(meta);
+        }
         card.appendChild(head);
 
         var clock = document.createElement("div");
@@ -282,6 +360,9 @@
         }
         while (eventList.children.length < 3) {
           eventList.appendChild(makeEmpty(false));
+        }
+        if (eventList.lastElementChild != null) {
+          eventList.lastElementChild.classList.add("last");
         }
         if (window.Tick && window.Tick.DOM
             && typeof window.Tick.DOM.parse === "function") {
