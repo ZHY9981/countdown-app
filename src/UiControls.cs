@@ -13,7 +13,9 @@ namespace CountdownApp
         Undo,
         Clock,
         More,
-        Widget
+        Widget,
+        Check,
+        Close
     }
 
     public static class UiIconFactory
@@ -89,6 +91,16 @@ namespace CountdownApp
                 graphics.DrawRectangle(pen, S(2.5f), S(3), S(11), S(10));
                 graphics.DrawLine(pen, S(8), S(3), S(8), S(13));
                 graphics.DrawLine(pen, S(8), S(8), S(13.5f), S(8));
+            }
+            else if (glyph == AppGlyph.Check)
+            {
+                graphics.DrawLine(pen, S(3), S(8.5f), S(7), S(12.5f));
+                graphics.DrawLine(pen, S(7), S(12.5f), S(14), S(4));
+            }
+            else if (glyph == AppGlyph.Close)
+            {
+                graphics.DrawLine(pen, S(4), S(4), S(12), S(12));
+                graphics.DrawLine(pen, S(12), S(4), S(4), S(12));
             }
         }
     }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -22,6 +23,8 @@ namespace CountdownApp
         private readonly JavaScriptSerializer _serializer;
         private readonly WidgetSettingsStore _widgetSettingsStore;
         private readonly WidgetSettings _widgetSettings;
+        private readonly UiSettingsStore _uiSettingsStore;
+        private readonly UiSettings _uiSettings;
 
         private WebView2 _webView;
         private StatusPill _countLabel;
@@ -29,7 +32,14 @@ namespace CountdownApp
         private Button _editButton;
         private Button _deleteButton;
         private Button _undoButton;
-        private FlowLayoutPanel _summaryPanel;
+        private Button _addButton;
+        private Button _themeDarkButton;
+        private Button _themeLightButton;
+        private Panel _themeTogglePanel;
+        private Panel _actionDivider1;
+        private Panel _actionDivider2;
+        private Label _selectedCaptionLabel;
+        private Panel _summaryPanel;
         private FlowLayoutPanel _actionPanel;
         private Panel _actionBar;
         private Panel _widgetHeader;
@@ -48,6 +58,7 @@ namespace CountdownApp
         private bool _trayHintShown;
         private bool _webReady;
         private bool _widgetMode;
+        private bool _darkTheme;
         private CountdownEvent _deletedEvent;
         private int _deletedIndex;
         private string _selectedId;
@@ -69,6 +80,10 @@ namespace CountdownApp
             _serializer.MaxJsonLength = int.MaxValue;
             _widgetSettingsStore = new WidgetSettingsStore();
             _widgetSettings = _widgetSettingsStore.Load();
+            _uiSettingsStore = new UiSettingsStore();
+            _uiSettings = _uiSettingsStore.Load();
+            _darkTheme = _uiSettings.DarkTheme;
+            LogWebView("Main theme: " + (_darkTheme ? "dark" : "light"));
             _appIcon = AppResources.CreateAppIcon();
             _trayIcon = AppResources.CreateTrayIcon();
             _toolTip = new ToolTip();
@@ -83,7 +98,7 @@ namespace CountdownApp
             MinimumSize = AppResources.SS(900, 560);
             Size = AppResources.SS(1080, 680);
             _mainMinimumSize = MinimumSize;
-            BackColor = AppResources.Background;
+            BackColor = CurrentTheme.Background;
             Font = AppResources.Font(9F, FontStyle.Regular);
             KeyPreview = true;
 
@@ -93,6 +108,7 @@ namespace CountdownApp
             Load += MainForm_Load;
             Shown += delegate
             {
+                MainWindowTheme.Apply(Handle, _darkTheme);
                 PositionActionBar();
                 if (_startInWidgetMode)
                 {
@@ -127,6 +143,11 @@ namespace CountdownApp
             };
         }
 
+        private MainThemePalette CurrentTheme
+        {
+            get { return _darkTheme ? MainTheme.Dark : MainTheme.Light; }
+        }
+
         private async void MainForm_Load(object sender, EventArgs e)
         {
             _renderedDate = DateTime.Today;
@@ -153,13 +174,13 @@ namespace CountdownApp
 
             _workspace = new Panel();
             _workspace.Dock = DockStyle.Fill;
-            _workspace.BackColor = AppResources.Background;
+            _workspace.BackColor = CurrentTheme.Background;
             _workspace.Padding = AppResources.SPad(30, 28, 34, 22);
             _rootLayout.Controls.Add(_workspace, 0, 1);
 
             _webView = new WebView2();
             _webView.Dock = DockStyle.Fill;
-            _webView.DefaultBackgroundColor = AppResources.Background;
+            _webView.DefaultBackgroundColor = CurrentTheme.Background;
             _workspace.Controls.Add(_webView);
 
             _actionBar = BuildActionBar();
@@ -396,73 +417,89 @@ namespace CountdownApp
         {
             Panel bar = new Panel();
             bar.Dock = DockStyle.Fill;
-            bar.BackColor = AppResources.Surface;
+            bar.BackColor = CurrentTheme.ActionBar;
             bar.Paint += delegate(object sender, PaintEventArgs e)
             {
-                using (Pen pen = new Pen(AppResources.Border))
+                using (Pen pen = new Pen(CurrentTheme.Border))
                 {
                     e.Graphics.DrawLine(pen, 0, 0, bar.Width, 0);
                 }
             };
 
-            _summaryPanel = new FlowLayoutPanel();
-            _summaryPanel.AutoSize = true;
-            _summaryPanel.WrapContents = false;
-            _summaryPanel.FlowDirection = FlowDirection.LeftToRight;
-            _summaryPanel.BackColor = AppResources.Surface;
+            _summaryPanel = new Panel();
+            _summaryPanel.AutoSize = false;
+            _summaryPanel.BackColor = CurrentTheme.ActionBar;
             bar.Controls.Add(_summaryPanel);
 
             _countLabel = new StatusPill();
             _countLabel.Text = "0 个倒计时";
-            _countLabel.PillColor = AppResources.FieldBackground;
-            _countLabel.ForeColor = AppResources.Secondary;
-            _countLabel.Margin = AppResources.SPad(0, 4, 12, 0);
+            _countLabel.PillColor = CurrentTheme.ActionButton;
+            _countLabel.ForeColor = CurrentTheme.Muted;
+            _countLabel.Margin = Padding.Empty;
             _summaryPanel.Controls.Add(_countLabel);
 
-            Label selectedCaption = new Label();
-            selectedCaption.Text = "当前选择";
-            selectedCaption.AutoSize = true;
-            selectedCaption.ForeColor = AppResources.Muted;
-            selectedCaption.Font = AppResources.Font(8.5F, FontStyle.Regular);
-            selectedCaption.Margin = AppResources.SPad(0, 9, 8, 0);
-            _summaryPanel.Controls.Add(selectedCaption);
+            _selectedCaptionLabel = new Label();
+            _selectedCaptionLabel.Text = "当前选择";
+            _selectedCaptionLabel.AutoSize = true;
+            _selectedCaptionLabel.ForeColor = CurrentTheme.Muted;
+            _selectedCaptionLabel.Font = AppResources.Font(8.5F, FontStyle.Regular);
+            _selectedCaptionLabel.Margin = Padding.Empty;
+            _summaryPanel.Controls.Add(_selectedCaptionLabel);
 
             _selectedNameLabel = new Label();
             _selectedNameLabel.Text = "--";
             _selectedNameLabel.AutoSize = true;
-            _selectedNameLabel.ForeColor = AppResources.Text;
+            _selectedNameLabel.ForeColor = CurrentTheme.Text;
             _selectedNameLabel.Font = AppResources.Font(10F, FontStyle.Bold);
-            _selectedNameLabel.Margin = AppResources.SPad(0, 7, 26, 0);
+            _selectedNameLabel.Margin = Padding.Empty;
             _summaryPanel.Controls.Add(_selectedNameLabel);
 
             _actionPanel = new FlowLayoutPanel();
             _actionPanel.AutoSize = true;
+            _actionPanel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             _actionPanel.WrapContents = false;
             _actionPanel.FlowDirection = FlowDirection.LeftToRight;
-            _actionPanel.BackColor = AppResources.Surface;
+            _actionPanel.BackColor = CurrentTheme.ActionBar;
             bar.Controls.Add(_actionPanel);
 
-            Button widgetToggle = CreateButton(
-                "组件",
-                76,
-                34,
-                false,
-                AppGlyph.Widget);
-            _toolTip.SetToolTip(widgetToggle, "切换到桌面小组件");
-            widgetToggle.Click += delegate { SwitchToWidgetMode(); };
-            _actionPanel.Controls.Add(widgetToggle);
+            _themeTogglePanel = new Panel();
+            _themeTogglePanel.Width = AppResources.S(124);
+            _themeTogglePanel.Height = AppResources.S(34);
+            _themeTogglePanel.Margin = AppResources.SPad(0, 0, 8, 0);
+            _themeTogglePanel.BackColor = CurrentTheme.ActionButton;
+            _themeTogglePanel.Paint += delegate(object sender, PaintEventArgs e)
+            {
+                using (Pen pen = new Pen(CurrentTheme.Border))
+                using (GraphicsPath path = RoundedPanel.CreateRoundedPath(
+                    new Rectangle(0, 0, _themeTogglePanel.Width - 1, _themeTogglePanel.Height - 1),
+                    AppResources.S(7)))
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    e.Graphics.DrawPath(pen, path);
+                }
+            };
+            _actionPanel.Controls.Add(_themeTogglePanel);
 
-            Button add = CreateButton("添加", 76, 34, true, AppGlyph.Add);
-            add.Click += delegate { AddEvent(); };
-            _actionPanel.Controls.Add(add);
+            _themeDarkButton = CreateThemeButton("☾ 深色", 58);
+            _themeDarkButton.Click += delegate { SetDarkTheme(true); };
+            _themeTogglePanel.Controls.Add(_themeDarkButton);
 
-            _editButton = CreateButton(string.Empty, 34, 34, false, AppGlyph.Edit);
+            _themeLightButton = CreateThemeButton("☀ 浅色", 58);
+            _themeLightButton.Location = AppResources.SP(60, 3);
+            _themeLightButton.Click += delegate { SetDarkTheme(false); };
+            _themeTogglePanel.Controls.Add(_themeLightButton);
+            ApplyThemeButtonStyles();
+
+            _actionDivider1 = CreateActionDivider();
+            _actionPanel.Controls.Add(_actionDivider1);
+
+            _editButton = CreateButton("编辑", 68, 34, false, AppGlyph.Edit);
             _editButton.AccessibleName = "编辑";
             _toolTip.SetToolTip(_editButton, "编辑当前倒计时");
             _editButton.Click += delegate { EditSelected(); };
             _actionPanel.Controls.Add(_editButton);
 
-            _deleteButton = CreateButton(string.Empty, 34, 34, false, AppGlyph.Delete);
+            _deleteButton = CreateButton("删除", 68, 34, false, AppGlyph.Delete);
             _deleteButton.AccessibleName = "删除";
             _toolTip.SetToolTip(_deleteButton, "删除当前倒计时");
             _deleteButton.Click += delegate { DeleteSelected(); };
@@ -474,8 +511,26 @@ namespace CountdownApp
             _undoButton.Click += delegate { UndoDelete(); };
             _actionPanel.Controls.Add(_undoButton);
 
+            _actionDivider2 = CreateActionDivider();
+            _actionPanel.Controls.Add(_actionDivider2);
+
+            _addButton = CreateButton("添加", 76, 34, true, AppGlyph.Add);
+            _addButton.Click += delegate { AddEvent(); };
+            _actionPanel.Controls.Add(_addButton);
+
             bar.Resize += delegate { PositionActionBar(bar); };
             return bar;
+        }
+
+        private Panel CreateActionDivider()
+        {
+            Panel divider = new Panel();
+            divider.Width = AppResources.S(1);
+            divider.Height = AppResources.S(24);
+            divider.Margin = AppResources.SPad(5, 5, 9, 0);
+            divider.BackColor = CurrentTheme.Border;
+            divider.Tag = "action-divider";
+            return divider;
         }
 
         private Button CreateButton(string text, int width, int height, bool primary, AppGlyph glyph)
@@ -487,25 +542,140 @@ namespace CountdownApp
             button.Margin = AppResources.SPad(0, 0, 8, 0);
             button.FlatStyle = FlatStyle.Flat;
             button.FlatAppearance.BorderSize = primary ? 0 : 1;
-            button.FlatAppearance.BorderColor = AppResources.ButtonBorder;
-            button.BackColor = primary ? AppResources.Accent : AppResources.Surface;
-            button.ForeColor = primary ? AppResources.OnAccent : AppResources.Text;
+            button.FlatAppearance.BorderColor = CurrentTheme.Border;
+            button.BackColor = primary ? CurrentTheme.Accent : CurrentTheme.ActionButton;
+            button.ForeColor = primary ? CurrentTheme.OnAccent : CurrentTheme.Text;
             button.Font = AppResources.Font(9F, FontStyle.Bold);
             button.Cursor = Cursors.Hand;
             button.UseVisualStyleBackColor = false;
             button.TextImageRelation = TextImageRelation.ImageBeforeText;
             button.ImageAlign = ContentAlignment.MiddleLeft;
             button.Padding = primary ? AppResources.SPad(8, 0, 8, 0) : Padding.Empty;
-            button.Image = UiIconFactory.Create(glyph, primary ? AppResources.OnAccent : AppResources.Secondary);
+            button.Image = UiIconFactory.Create(
+                glyph,
+                primary ? CurrentTheme.OnAccent : CurrentTheme.Muted);
             button.MouseEnter += delegate
             {
-                button.BackColor = primary ? AppResources.AccentHover : AppResources.FieldBackground;
+                button.BackColor = primary
+                    ? CurrentTheme.AccentHover
+                    : CurrentTheme.ActionButtonHover;
             };
             button.MouseLeave += delegate
             {
-                button.BackColor = primary ? AppResources.Accent : AppResources.Surface;
+                button.BackColor = primary
+                    ? CurrentTheme.Accent
+                    : CurrentTheme.ActionButton;
             };
             return button;
+        }
+
+        private Button CreateThemeButton(string text, int width)
+        {
+            Button button = new Button();
+            button.Text = text;
+            button.Width = AppResources.S(width);
+            button.Height = AppResources.S(28);
+            button.Location = AppResources.SP(3, 3);
+            button.FlatStyle = FlatStyle.Flat;
+            button.FlatAppearance.BorderSize = 0;
+            button.Font = AppResources.Font(8.5F, FontStyle.Bold);
+            button.Cursor = Cursors.Hand;
+            button.UseVisualStyleBackColor = false;
+            button.MouseEnter += delegate { ApplyThemeButtonStyles(); };
+            button.MouseLeave += delegate { ApplyThemeButtonStyles(); };
+            return button;
+        }
+
+        private void SetDarkTheme(bool dark)
+        {
+            if (_darkTheme == dark) return;
+
+            _darkTheme = dark;
+            _uiSettings.DarkTheme = dark;
+            try
+            {
+                _uiSettingsStore.Save(_uiSettings);
+            }
+            catch
+            {
+                // Theme persistence must not block switching.
+            }
+            ApplyMainTheme();
+        }
+
+        private void ApplyMainTheme()
+        {
+            MainThemePalette theme = CurrentTheme;
+            BackColor = theme.Background;
+            _workspace.BackColor = theme.Background;
+            _webView.DefaultBackgroundColor = theme.Background;
+            _actionBar.BackColor = theme.ActionBar;
+            _summaryPanel.BackColor = theme.ActionBar;
+            _actionPanel.BackColor = theme.ActionBar;
+            _countLabel.PillColor = theme.ActionButton;
+            _countLabel.ForeColor = theme.Muted;
+            _selectedCaptionLabel.ForeColor = theme.Muted;
+            _selectedNameLabel.ForeColor = theme.Text;
+
+            SetActionButtonTheme(_addButton, true, AppGlyph.Add);
+            SetActionButtonTheme(_editButton, false, AppGlyph.Edit);
+            SetActionButtonTheme(_deleteButton, false, AppGlyph.Delete);
+            SetActionButtonTheme(_undoButton, false, AppGlyph.Undo);
+            _themeTogglePanel.BackColor = theme.ActionButton;
+            _actionDivider1.BackColor = theme.Border;
+            _actionDivider2.BackColor = theme.Border;
+            ApplyThemeButtonStyles();
+
+            MainWindowTheme.Apply(Handle, _darkTheme);
+            _actionBar.Invalidate();
+            _themeTogglePanel.Invalidate();
+            PositionActionBar();
+            RefreshWebContent();
+        }
+
+        private void ApplyThemeButtonStyles()
+        {
+            if (_themeDarkButton == null || _themeLightButton == null) return;
+
+            MainThemePalette theme = CurrentTheme;
+            StyleThemeButton(_themeDarkButton, _darkTheme, theme);
+            StyleThemeButton(_themeLightButton, !_darkTheme, theme);
+        }
+
+        private static void StyleThemeButton(
+            Button button,
+            bool selected,
+            MainThemePalette theme)
+        {
+            button.BackColor = selected ? theme.Accent : theme.ActionButton;
+            button.ForeColor = selected ? theme.OnAccent : theme.Muted;
+            button.FlatAppearance.MouseOverBackColor = selected
+                ? theme.AccentHover
+                : theme.ActionButtonHover;
+        }
+
+        private void SetActionButtonTheme(
+            Button button,
+            bool primary,
+            AppGlyph glyph)
+        {
+            if (button == null) return;
+
+            MainThemePalette theme = CurrentTheme;
+            button.BackColor = primary ? theme.Accent : theme.ActionButton;
+            button.ForeColor = primary ? theme.OnAccent : theme.Text;
+            button.FlatAppearance.BorderColor = theme.Border;
+            button.FlatAppearance.MouseOverBackColor = primary
+                ? theme.AccentHover
+                : theme.ActionButtonHover;
+            if (button.Image != null)
+            {
+                Image old = button.Image;
+                button.Image = UiIconFactory.Create(
+                    glyph,
+                    primary ? theme.OnAccent : theme.Muted);
+                old.Dispose();
+            }
         }
 
         private void PositionActionBar()
@@ -517,14 +687,54 @@ namespace CountdownApp
         private void PositionActionBar(Control bar)
         {
             if (_actionPanel == null || _summaryPanel == null) return;
-            _summaryPanel.PerformLayout();
             _actionPanel.PerformLayout();
+            PositionSummaryPanel();
             int summaryTop = Math.Max(0, (bar.ClientSize.Height - _summaryPanel.Height) / 2);
             int actionTop = Math.Max(0, (bar.ClientSize.Height - _actionPanel.Height) / 2);
             _summaryPanel.Location = new Point(AppResources.S(38), summaryTop);
             _actionPanel.Location = new Point(
                 Math.Max(AppResources.S(38), bar.ClientSize.Width - _actionPanel.Width - AppResources.S(38)),
                 actionTop);
+        }
+
+        private void PositionSummaryPanel()
+        {
+            if (_summaryPanel == null
+                || _countLabel == null
+                || _selectedCaptionLabel == null
+                || _selectedNameLabel == null) return;
+
+            int gap = AppResources.S(10);
+            int groupGap = AppResources.S(8);
+            int height = Math.Max(
+                _countLabel.PreferredHeight,
+                Math.Max(
+                    _selectedCaptionLabel.PreferredHeight,
+                    _selectedNameLabel.PreferredHeight));
+            height = Math.Max(AppResources.S(30), height);
+            _summaryPanel.Height = height;
+
+            int x = 0;
+            _countLabel.Location = new Point(
+                x,
+                Math.Max(0, (height - _countLabel.PreferredHeight) / 2));
+            _countLabel.Width = _countLabel.PreferredWidth;
+            _countLabel.Height = _countLabel.PreferredHeight;
+            x = _countLabel.Right + gap;
+
+            _selectedCaptionLabel.Location = new Point(
+                x,
+                Math.Max(0, (height - _selectedCaptionLabel.PreferredHeight) / 2));
+            _selectedCaptionLabel.Width = _selectedCaptionLabel.PreferredWidth;
+            _selectedCaptionLabel.Height = _selectedCaptionLabel.PreferredHeight;
+            x = _selectedCaptionLabel.Right + groupGap;
+
+            _selectedNameLabel.Location = new Point(
+                x,
+                Math.Max(0, (height - _selectedNameLabel.PreferredHeight) / 2));
+            _selectedNameLabel.Width = _selectedNameLabel.PreferredWidth;
+            _selectedNameLabel.Height = _selectedNameLabel.PreferredHeight;
+            _summaryPanel.Width = _selectedNameLabel.Right;
         }
 
         private void RefreshView(bool selectNearest)
@@ -539,11 +749,18 @@ namespace CountdownApp
 
             _countLabel.Text = _state.Events.Count.ToString() + " 个倒计时";
             CountdownEvent selected = FindEvent(_selectedId);
-            _selectedNameLabel.Text = selected == null ? "--" : selected.Name;
+            UpdateSelectedName(selected == null ? "--" : selected.Name);
             _editButton.Enabled = selected != null;
             _deleteButton.Enabled = selected != null;
             UpdateTrayText(now);
             RefreshWebContent();
+        }
+
+        private void UpdateSelectedName(string name)
+        {
+            _selectedNameLabel.Text = name;
+            _toolTip.SetToolTip(_selectedNameLabel, name);
+            PositionActionBar();
         }
 
         private void RefreshWebContent()
@@ -555,6 +772,7 @@ namespace CountdownApp
                 List<CountdownEvent> sorted = CountdownEngine.SortForDisplay(_state.Events, now);
                 Dictionary<string, object> root = new Dictionary<string, object>();
                 root["selectedId"] = _selectedId;
+                root["darkTheme"] = _darkTheme;
 
                 List<Dictionary<string, object>> events = new List<Dictionary<string, object>>();
                 for (int i = 0; i < sorted.Count; i++)
@@ -568,6 +786,17 @@ namespace CountdownApp
                     value["name"] = item.Name;
                     value["dateText"] = AppResources.FormatDate(snapshot.TargetDate);
                     value["targetIso"] = snapshot.TargetDate.ToString("yyyy-MM-dd'T'HH:mm:ss");
+                    value["targetTimeText"] =
+                        snapshot.TargetDate.ToString("yyyy-MM-dd HH:mm");
+                    value["startTimeText"] = item.CreatedAt == DateTime.MinValue
+                        ? "起始时间未记录"
+                        : item.CreatedAt.ToString("yyyy-MM-dd HH:mm");
+                    value["currentTimeText"] = now.ToString("yyyy-MM-dd HH:mm");
+                    int progressPercent;
+                    value["progressPercent"] =
+                        CountdownEngine.TryCalculateProgress(item, now, out progressPercent)
+                            ? progressPercent
+                            : -1;
                     value["ended"] = snapshot.Status == CountdownStatus.Ended;
                     if (snapshot.Status == CountdownStatus.Ended)
                     {
@@ -621,6 +850,7 @@ namespace CountdownApp
                     _serializer.DeserializeObject(e.WebMessageAsJson) as Dictionary<string, object>;
                 if (message == null) return;
                 string type = Convert.ToString(message.ContainsKey("type") ? message["type"] : string.Empty);
+                LogWebView("Web message: " + type);
                 if (type == "select")
                 {
                     string id = Convert.ToString(message.ContainsKey("id") ? message["id"] : string.Empty);
@@ -628,7 +858,7 @@ namespace CountdownApp
                     if (selected != null)
                     {
                         _selectedId = selected.Id;
-                        _selectedNameLabel.Text = selected.Name;
+                        UpdateSelectedName(selected.Name);
                         _editButton.Enabled = true;
                         _deleteButton.Enabled = true;
                         UpdateTrayText(DateTime.Now);
@@ -642,6 +872,10 @@ namespace CountdownApp
                 {
                     SwitchToMainMode();
                 }
+                else if (type == "widget")
+                {
+                    SwitchToWidgetMode();
+                }
             }
             catch
             {
@@ -651,7 +885,7 @@ namespace CountdownApp
 
         private void AddEvent()
         {
-            using (EventEditForm form = new EventEditForm(null))
+            using (EventEditForm form = new EventEditForm(null, _darkTheme))
             {
                 if (form.ShowDialog(this) != DialogResult.OK || form.Item == null) return;
                 _state.Events.Add(form.Item);
@@ -666,9 +900,16 @@ namespace CountdownApp
             CountdownEvent selected = FindEvent(_selectedId);
             if (selected == null) return;
 
-            using (EventEditForm form = new EventEditForm(selected))
+            using (EventEditForm form = new EventEditForm(selected, _darkTheme))
             {
-                if (form.ShowDialog(this) != DialogResult.OK || form.Item == null) return;
+                DialogResult result = form.ShowDialog(this);
+                if (form.DeleteRequested)
+                {
+                    _selectedId = selected.Id;
+                    DeleteSelected();
+                    return;
+                }
+                if (result != DialogResult.OK || form.Item == null) return;
                 selected.Name = form.Item.Name;
                 selected.Date = form.Item.Date;
                 SaveState();
@@ -930,16 +1171,13 @@ namespace CountdownApp
             _widgetHeader.Visible = false;
             _actionBar.Visible = true;
             _workspace.Padding = AppResources.SPad(30, 28, 34, 22);
-            _workspace.BackColor = AppResources.Background;
             _widgetHeader.BackColor = WidgetTheme.Background;
-            BackColor = AppResources.Background;
-            _webView.DefaultBackgroundColor = AppResources.Background;
             FormBorderStyle = FormBorderStyle.Sizable;
             MinimumSize = _mainMinimumSize;
             MaximumSize = Size.Empty;
             Bounds = _mainBounds;
             Activate();
-            RefreshWebContent();
+            ApplyMainTheme();
         }
 
         private void SaveWidgetPosition()
@@ -1037,14 +1275,24 @@ namespace CountdownApp
                     ready:document.readyState,
                     ticks:document.querySelectorAll('.tick').length,
                     cards:document.querySelectorAll('.card').length,
+                    theme:document.documentElement.getAttribute('data-theme'),
                     viewport:{width:innerWidth,height:innerHeight},
+                    hero:(function(){
+                        var card=document.querySelector('.card.hero');
+                        if(!card)return null;
+                        var rect=card.getBoundingClientRect();
+                        return {top:rect.top,height:rect.height};
+                    })(),
                     compactRows:Array.prototype.map.call(document.querySelectorAll('.compact'),function(card){
                         var head=card.querySelector('.card-head');
                         var clock=card.querySelector('.clock');
                         var tick=card.querySelector('.countdown-tick');
                         var layout=card.querySelector('[data-layout]');
                         var groups=card.querySelectorAll('.tick-group');
+                        var rect=card.getBoundingClientRect();
                         return {
+                            top:rect.top,
+                            height:rect.height,
                             card:card.getBoundingClientRect().width,
                             head:head?head.getBoundingClientRect().width:0,
                             clock:clock?clock.getBoundingClientRect().width:0,

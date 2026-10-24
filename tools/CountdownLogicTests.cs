@@ -13,6 +13,7 @@ internal static class CountdownLogicTests
         TestTodaySnapshot();
         TestUpcomingSnapshot();
         TestEndedSnapshot();
+        TestProgress();
         TestSorting();
         TestValidation();
         TestStoreRoundTrip();
@@ -58,6 +59,34 @@ internal static class CountdownLogicTests
         Assert(snapshot.Status == CountdownStatus.Ended, "ended status");
         Assert(snapshot.Remaining == TimeSpan.Zero, "ended remaining time");
         Assert(CountdownEngine.FormatRemaining(snapshot, true) == "已到期", "ended display");
+    }
+
+    private static void TestProgress()
+    {
+        CountdownEvent item = CreateEvent("进度", "2026-10-21");
+        item.CreatedAt = new DateTime(2026, 10, 11, 0, 0, 0);
+
+        int percent;
+        Assert(
+            CountdownEngine.TryCalculateProgress(
+                item,
+                new DateTime(2026, 10, 16, 0, 0, 0),
+                out percent),
+            "progress should be valid");
+        Assert(percent == 50, "progress midpoint");
+
+        Assert(
+            CountdownEngine.TryCalculateProgress(
+                item,
+                new DateTime(2026, 10, 25, 0, 0, 0),
+                out percent),
+            "overdue progress should be valid");
+        Assert(percent == 100, "overdue progress clamps to 100");
+
+        item.CreatedAt = DateTime.MinValue;
+        Assert(
+            !CountdownEngine.TryCalculateProgress(item, DateTime.Now, out percent),
+            "missing creation time is not treated as zero progress");
     }
 
     private static void TestSorting()

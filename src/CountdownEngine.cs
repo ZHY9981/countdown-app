@@ -80,6 +80,43 @@ namespace CountdownApp
             return Calculate(item == null ? string.Empty : item.Date, now);
         }
 
+        public static bool TryCalculateProgress(
+            CountdownEvent item,
+            DateTime now,
+            out int percent)
+        {
+            percent = 0;
+            if (item == null || item.CreatedAt == DateTime.MinValue) return false;
+
+            DateTime date;
+            if (!TryParseDate(item.Date, out date)) return false;
+
+            DateTime start = item.CreatedAt;
+            DateTime target = TargetFor(date);
+            if (target <= start)
+            {
+                percent = now >= target ? 100 : 0;
+                return true;
+            }
+
+            double totalSeconds = (target - start).TotalSeconds;
+            double elapsedSeconds = (now - start).TotalSeconds;
+            if (elapsedSeconds <= 0)
+            {
+                percent = 0;
+            }
+            else if (elapsedSeconds >= totalSeconds)
+            {
+                percent = 100;
+            }
+            else
+            {
+                percent = (int)Math.Round(elapsedSeconds / totalSeconds * 100);
+            }
+            percent = Math.Max(0, Math.Min(100, percent));
+            return true;
+        }
+
         public static bool ValidateEvent(CountdownEvent item, out string error)
         {
             error = string.Empty;

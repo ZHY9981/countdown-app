@@ -182,12 +182,15 @@ namespace CountdownApp
             SeedDefaults(state);
             state.Events[0].Name = "产品发布";
             state.Events[0].Date = DateTime.Today.AddDays(3).ToString("yyyy-MM-dd");
+            state.Events[0].CreatedAt = DateTime.Now.AddDays(-1);
             state.Events[1].Name = "年度复盘";
             state.Events[1].Date = DateTime.Today.AddDays(38).ToString("yyyy-MM-dd");
+            state.Events[1].CreatedAt = DateTime.Now.AddDays(-10);
 
             CountdownEvent third = new CountdownEvent();
             third.Name = "2027 黑客松";
             third.Date = DateTime.Today.AddDays(226).ToString("yyyy-MM-dd");
+            third.CreatedAt = DateTime.Now.AddDays(-100);
             state.Events.Add(third);
             return state;
         }
